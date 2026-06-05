@@ -1,8 +1,12 @@
+import base64
+import hashlib
+import hmac
 import os
 import smtplib
 import time
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
+from secrets import token_bytes
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -17,6 +21,11 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "mysql+pymysql://italent:italent_password@localhost:3306/italent_db",
 )
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+DATABASE_DIALECT = DATABASE_URL.split(":", 1)[0].split("+", 1)[0]
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
@@ -25,6 +34,7 @@ CORS_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", "").strip() or None
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
@@ -32,6 +42,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME or "no-reply@turcomp.local")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 RESET_TOKEN_EXPIRE_MINUTES = int(os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "30"))
+PASSWORD_HASH_ITERATIONS = int(os.getenv("PASSWORD_HASH_ITERATIONS", "210000"))
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+SEED_DATABASE = os.getenv("SEED_DATABASE", "true" if APP_ENV != "production" else "false").lower() == "true"
+DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "" if APP_ENV == "production" else "password123")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -132,6 +146,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS or ["*"],
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -217,6 +232,29 @@ def iso(value: Optional[datetime]) -> Optional[str]:
 
 def dump(model: BaseModel) -> Dict[str, Any]:
     return model.model_dump(exclude_none=True)
+
+
+def hash_password(password: str) -> str:
+    salt = token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_HASH_ITERATIONS)
+    salt_value = base64.urlsafe_b64encode(salt).decode("ascii")
+    hash_value = base64.urlsafe_b64encode(digest).decode("ascii")
+    return f"pbkdf2_sha256${PASSWORD_HASH_ITERATIONS}${salt_value}${hash_value}"
+
+
+def verify_password(password: str, stored_password: str) -> bool:
+    parts = stored_password.split("$")
+    if len(parts) != 4 or parts[0] != "pbkdf2_sha256":
+        return hmac.compare_digest(stored_password, password)
+
+    _, iterations, salt_value, hash_value = parts
+    try:
+        salt = base64.urlsafe_b64decode(salt_value.encode("ascii"))
+        expected = base64.urlsafe_b64decode(hash_value.encode("ascii"))
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations))
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(digest, expected)
 
 
 def get_db() -> Session:
@@ -383,12 +421,20 @@ def get_current_user(
 def migrate_user_profile_columns() -> None:
     inspector = inspect(engine)
     existing_columns = {column["name"] for column in inspector.get_columns("users")}
-    column_statements = {
-        "phone": "ALTER TABLE users ADD COLUMN phone VARCHAR(80) NULL",
-        "position": "ALTER TABLE users ADD COLUMN position VARCHAR(160) NULL",
-        "skills": "ALTER TABLE users ADD COLUMN skills JSON NULL",
-        "notes": "ALTER TABLE users ADD COLUMN notes TEXT NULL",
-    }
+    if DATABASE_DIALECT == "postgresql":
+        column_statements = {
+            "phone": "ALTER TABLE users ADD COLUMN phone VARCHAR(80)",
+            "position": "ALTER TABLE users ADD COLUMN position VARCHAR(160)",
+            "skills": "ALTER TABLE users ADD COLUMN skills JSON",
+            "notes": "ALTER TABLE users ADD COLUMN notes TEXT",
+        }
+    else:
+        column_statements = {
+            "phone": "ALTER TABLE users ADD COLUMN phone VARCHAR(80) NULL",
+            "position": "ALTER TABLE users ADD COLUMN position VARCHAR(160) NULL",
+            "skills": "ALTER TABLE users ADD COLUMN skills JSON NULL",
+            "notes": "ALTER TABLE users ADD COLUMN notes TEXT NULL",
+        }
 
     with engine.begin() as connection:
         for column_name, statement in column_statements.items():
@@ -402,8 +448,9 @@ def init_database() -> None:
         try:
             Base.metadata.create_all(bind=engine)
             migrate_user_profile_columns()
-            with SessionLocal() as db:
-                seed_database(db)
+            if SEED_DATABASE:
+                with SessionLocal() as db:
+                    seed_database(db)
             return
         except Exception as exc:  # pragma: no cover - startup retry for containerized MySQL
             last_error = exc
@@ -412,6 +459,9 @@ def init_database() -> None:
 
 
 def seed_database(db: Session) -> None:
+    if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
+        raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be set when seeding a production database")
+
     now = utc_now()
     if db.query(Department).count() == 0:
         db.add_all(
@@ -450,7 +500,7 @@ def seed_database(db: Session) -> None:
                 id=1,
                 username="admin",
                 email="admin@turcomp.com",
-                password="password123",
+                password=hash_password(DEFAULT_ADMIN_PASSWORD),
                 first_name="Turcomp",
                 last_name="Admin",
                 phone="+60 3-0000 0000",
@@ -536,14 +586,18 @@ def startup() -> None:
 
 @app.get("/api/health")
 def health() -> Dict[str, str]:
-    return {"status": "ok", "database": "mysql"}
+    return {"status": "ok", "database": DATABASE_DIALECT}
 
 
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Dict[str, Any]:
     user = db.query(User).filter(User.email == payload.email.lower()).first()
-    if not user or user.password != payload.password:
+    if not user or not verify_password(payload.password, user.password):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
+    if "$" not in user.password:
+        user.password = hash_password(payload.password)
+        user.updated_at = utc_now()
+        db.commit()
     return issue_tokens(db, user)
 
 
@@ -569,7 +623,7 @@ def confirm_password_reset(payload: PasswordResetConfirmRequest, db: Session = D
     if not user:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired reset token")
 
-    user.password = payload.password
+    user.password = hash_password(payload.password)
     user.updated_at = utc_now()
     db.delete(token)
     db.commit()
@@ -584,7 +638,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[st
     user = User(
         username=payload.username.strip(),
         email=payload.email.lower(),
-        password=payload.password,
+        password=hash_password(payload.password),
         first_name=payload.first_name.strip(),
         last_name=payload.last_name.strip(),
         phone=payload.phone.strip(),
