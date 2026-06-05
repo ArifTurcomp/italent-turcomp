@@ -459,9 +459,6 @@ def init_database() -> None:
 
 
 def seed_database(db: Session) -> None:
-    if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
-        raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be set when seeding a production database")
-
     now = utc_now()
     if db.query(Department).count() == 0:
         db.add_all(
@@ -493,6 +490,9 @@ def seed_database(db: Session) -> None:
             ]
         )
         db.commit()
+
+    if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
+        return
 
     if db.query(User).count() == 0:
         db.add(
