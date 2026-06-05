@@ -10,6 +10,8 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: PYTHON_VERSION
+        value: 3.12.7
       - key: SEED_DATABASE
         value: "true"
       - key: DEFAULT_ADMIN_PASSWORD
