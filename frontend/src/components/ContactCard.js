@@ -38,9 +38,9 @@ const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
       </View>
 
       <Text style={styles.meta} numberOfLines={1}>
-        {department} | {contact.email || "No email"} | {contact.phone || "No phone"}
+        {department} | {contact.email || "No email"}
       </Text>
-      {skills ? <Text style={styles.skills} numberOfLines={2}>Skills: {skills}</Text> : null}
+      {skills ? <Text style={styles.skills} numberOfLines={2}>Expertise: {skills}</Text> : null}
 
       <View style={styles.actions}>
         {onEdit ? (

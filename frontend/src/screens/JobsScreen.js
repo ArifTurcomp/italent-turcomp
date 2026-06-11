@@ -26,7 +26,7 @@ const JobsScreen = () => {
     setValues((current) => ({ ...current, [field]: value }));
   };
 
-  const createOpening = async () => {
+  const createOffer = async () => {
     if (!values.title.trim() || !values.description.trim()) return;
     try {
       await dispatch(
@@ -49,8 +49,8 @@ const JobsScreen = () => {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>Job Offerings</Text>
-          <Text style={styles.subtitle}>Create openings and match them with known talent.</Text>
+          <Text style={styles.title}>Mentorship & Coaching</Text>
+          <Text style={styles.subtitle}>Create mentorship or coaching offers and match them with people by expertise.</Text>
         </View>
         <Pressable style={styles.addButton} onPress={() => setShowForm((value) => !value)}>
           <Text style={styles.addButtonText}>{showForm ? "Close" : "Create"}</Text>
@@ -59,33 +59,33 @@ const JobsScreen = () => {
 
       {showForm ? (
         <View style={styles.formCard}>
-          <FormInput label="Job Title" value={values.title} onChangeText={(value) => updateValue("title", value)} />
+          <FormInput label="Offer Title" value={values.title} onChangeText={(value) => updateValue("title", value)} />
           <FormInput
-            label="Department ID"
+            label="Group ID"
             value={values.department_id}
             keyboardType="number-pad"
             onChangeText={(value) => updateValue("department_id", value)}
           />
           <FormInput
-            label="Required Skills"
+            label="Focus Areas"
             value={values.requirements}
-            helperText="Separate skills with commas."
+            helperText="Separate expertise, coaching topics, or interests with commas."
             onChangeText={(value) => updateValue("requirements", value)}
           />
           <FormInput
-            label="Job Description"
+            label="Offer Details"
             value={values.description}
             multiline
             onChangeText={(value) => updateValue("description", value)}
           />
-          <Pressable disabled={saving} style={styles.primaryButton} onPress={createOpening}>
-            <Text style={styles.primaryText}>{saving ? "Posting..." : "Post Job"}</Text>
+          <Pressable disabled={saving} style={styles.primaryButton} onPress={createOffer}>
+            <Text style={styles.primaryText}>{saving ? "Posting..." : "Post Offer"}</Text>
           </Pressable>
         </View>
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {loading && items.length === 0 ? <LoadingSpinner label="Loading jobs" /> : null}
+      {loading && items.length === 0 ? <LoadingSpinner label="Loading offers" /> : null}
       {items.map((job) => (
         <JobCard key={job.id} job={job} />
       ))}

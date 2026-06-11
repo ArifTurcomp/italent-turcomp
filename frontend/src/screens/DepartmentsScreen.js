@@ -16,13 +16,13 @@ const DepartmentsScreen = ({ onNavigate }) => {
   }, [dispatch]);
 
   if (loading && items.length === 0) {
-    return <LoadingSpinner label="Loading departments" fullScreen />;
+    return <LoadingSpinner label="Loading groups" fullScreen />;
   }
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Departments & Leaders</Text>
-      <Text style={styles.subtitle}>Browse teams and send opportunities to relevant leaders.</Text>
+      <Text style={styles.title}>Groups & Leaders</Text>
+      <Text style={styles.subtitle}>Browse groups and connect people to relevant mentors, coaches, or topic leads.</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <FlatList
         data={items}
@@ -30,20 +30,23 @@ const DepartmentsScreen = ({ onNavigate }) => {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
           const members = contacts.filter((contact) => contact.department_id === item.id);
+          const memberTotal = item.members_count ?? members.length;
           return (
             <View style={styles.card}>
               <View style={styles.row}>
                 <View style={styles.copy}>
                   <Text style={styles.name}>{item.name}</Text>
                   <Text style={styles.description}>{item.description || "No description"}</Text>
-                  <Text style={styles.leader}>Leader ID: {item.leader_id || "Unassigned"}</Text>
+                  <Text style={styles.leader}>
+                    Lead: {item.leader_name || (item.leader_id ? `ID ${item.leader_id}` : "Unassigned")}
+                  </Text>
                 </View>
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{members.length} members</Text>
+                  <Text style={styles.badgeText}>{memberTotal} members</Text>
                 </View>
               </View>
               <Pressable style={styles.button} onPress={() => onNavigate("Jobs")}>
-                <Text style={styles.buttonText}>Send Job to Leader</Text>
+                <Text style={styles.buttonText}>Create Coaching Offer</Text>
               </Pressable>
             </View>
           );

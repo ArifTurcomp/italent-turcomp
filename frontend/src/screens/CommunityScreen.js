@@ -16,11 +16,20 @@ const CommunityScreen = () => {
   const { posts, loading, saving, error } = useSelector((state) => state.community);
   const user = useSelector((state) => state.auth.user);
   const [showForm, setShowForm] = useState(false);
-  const [values, setValues] = useState({ content: "", category: "General" });
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [values, setValues] = useState({ content: "", category: "Mentorship" });
+
+  const categories = ["All", "Mentorship", "Coaching", "Expertise", "Hobby", "Science", "General"];
 
   useEffect(() => {
-    dispatch(fetchCommunityPosts({ page: 1, per_page: 50 }));
-  }, [dispatch]);
+    dispatch(
+      fetchCommunityPosts({
+        page: 1,
+        per_page: 50,
+        category: selectedCategory === "All" ? undefined : selectedCategory
+      })
+    );
+  }, [dispatch, selectedCategory]);
 
   const submitPost = async () => {
     if (!values.content.trim()) return;
@@ -31,7 +40,7 @@ const CommunityScreen = () => {
           category: values.category.trim() || "General"
         })
       ).unwrap();
-      setValues({ content: "", category: "General" });
+      setValues({ content: "", category: "Mentorship" });
       setShowForm(false);
     } catch (_) {
       // The Redux error state renders below the form.
@@ -44,8 +53,10 @@ const CommunityScreen = () => {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>Community Hub</Text>
-          <Text style={styles.subtitle}>Share announcements, opportunities, and learning updates.</Text>
+          <Text style={styles.title}>Community</Text>
+          <Text style={styles.subtitle}>
+            Share mentorship, coaching, expertise, hobbies, science, and other useful topics.
+          </Text>
         </View>
         <Pressable style={styles.addButton} onPress={() => setShowForm((value) => !value)}>
           <Text style={styles.addButtonText}>{showForm ? "Close" : "Post"}</Text>
@@ -54,9 +65,28 @@ const CommunityScreen = () => {
 
       <View style={styles.alert}>
         <Text style={styles.alertText}>
-          Share updates and connect with colleagues across departments.
+          Public community feed: connect through topics first, then continue the conversation with people who can help.
         </Text>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
+        {categories.map((category) => {
+          const active = selectedCategory === category;
+          return (
+            <Pressable
+              key={category}
+              style={[styles.filterChip, active && styles.activeFilterChip]}
+              onPress={() => setSelectedCategory(category)}
+            >
+              <Text style={[styles.filterText, active && styles.activeFilterText]}>{category}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {showForm ? (
         <View style={styles.formCard}>
@@ -69,7 +99,7 @@ const CommunityScreen = () => {
           <FormInput
             label="Category"
             value={values.category}
-            helperText="General, Opportunity, Announcement, or Learning."
+            helperText="Mentorship, Coaching, Expertise, Hobby, Science, or General."
             onChangeText={(value) => setValues((current) => ({ ...current, category: value }))}
           />
           <Pressable disabled={saving} style={styles.primaryButton} onPress={submitPost}>
@@ -84,7 +114,8 @@ const CommunityScreen = () => {
         <CommunityPostCard
           key={post.id}
           post={post}
-          authorName={post.author_id === user?.id ? authorName : "Turcomp Team"}
+          authorName={post.author_name || (post.author_id === user?.id ? authorName : "Community Member")}
+          authorEmail={post.author_email}
           onLike={() => dispatch(likeCommunityPost(post.id))}
         />
       ))}
@@ -143,6 +174,30 @@ const styles = StyleSheet.create({
     color: "#085041",
     fontSize: 13,
     fontWeight: "700"
+  },
+  filterRow: {
+    gap: 8,
+    paddingBottom: 14
+  },
+  filterChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  activeFilterChip: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  filterText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  activeFilterText: {
+    color: colors.primary
   },
   formCard: {
     backgroundColor: colors.surface,

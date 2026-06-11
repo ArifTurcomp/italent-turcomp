@@ -13,7 +13,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text, create_engine, inspect, or_, text
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text, cast, create_engine, inspect, or_, text
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 
@@ -283,12 +283,15 @@ def public_user(user: User) -> Dict[str, Any]:
     }
 
 
-def department_to_dict(department: Department) -> Dict[str, Any]:
+def department_to_dict(department: Department, db: Optional[Session] = None) -> Dict[str, Any]:
+    leader = db.get(User, department.leader_id) if db and department.leader_id else None
     return {
         "id": department.id,
         "name": department.name,
         "description": department.description,
         "leader_id": department.leader_id,
+        "leader_name": f"{leader.first_name} {leader.last_name}".strip() if leader else None,
+        "members_count": db.query(Contact).filter(Contact.department_id == department.id).count() if db else 0,
         "created_at": iso(department.created_at),
         "updated_at": iso(department.updated_at),
     }
@@ -331,12 +334,19 @@ def job_to_dict(db: Session, job: Job) -> Dict[str, Any]:
     }
 
 
-def post_to_dict(post: CommunityPost) -> Dict[str, Any]:
+def post_to_dict(db: Session, post: CommunityPost) -> Dict[str, Any]:
+    author = db.get(User, post.author_id) if post.author_id else None
+    author_name = None
+    if author:
+        author_name = f"{author.first_name} {author.last_name}".strip()
     return {
         "id": post.id,
         "content": post.content,
         "category": post.category,
         "author_id": post.author_id,
+        "author_name": author_name,
+        "author_email": author.email if author else None,
+        "author_position": author.position if author else None,
         "likes": post.likes,
         "comments_count": post.comments_count,
         "created_at": iso(post.created_at),
@@ -460,123 +470,390 @@ def init_database() -> None:
 
 def seed_database(db: Session) -> None:
     now = utc_now()
-    if db.query(Department).count() == 0:
-        db.add_all(
-            [
-                Department(
-                    id=1,
-                    name="Engineering",
-                    description="Cloud, product, and platform engineering.",
-                    leader_id=1,
-                    created_at=now,
-                    updated_at=now,
-                ),
-                Department(
-                    id=2,
-                    name="Marketing",
-                    description="Brand, campaigns, and digital growth.",
-                    leader_id=2,
-                    created_at=now,
-                    updated_at=now,
-                ),
-                Department(
-                    id=3,
-                    name="Operations",
-                    description="Delivery, process improvement, and field coordination.",
-                    leader_id=3,
-                    created_at=now,
-                    updated_at=now,
-                ),
-            ]
-        )
-        db.commit()
-
     if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
         return
 
-    if db.query(User).count() == 0:
-        db.add(
-            User(
-                id=1,
-                username="admin",
-                email="admin@turcomp.com",
-                password=hash_password(DEFAULT_ADMIN_PASSWORD),
-                first_name="Turcomp",
-                last_name="Admin",
-                phone="+60 3-0000 0000",
-                position="Administrator",
-                skills=["Talent Operations", "Coordination"],
-                notes="Seeded administrator account.",
-                role="admin",
-                department_id=1,
-                created_at=now,
-                updated_at=now,
-            )
-        )
-        db.commit()
+    def apply_values(instance: Any, values: Dict[str, Any]) -> None:
+        for key, value in values.items():
+            setattr(instance, key, value)
+        instance.updated_at = now
 
-    if db.query(Contact).count() == 0:
-        db.add_all(
-            [
-                Contact(
-                    name="Ahmad Hassan",
-                    email="ahmad@turcomp.com",
-                    phone="+60 3-1234 5678",
-                    position="Senior Software Engineer",
-                    skills=["Python", "AWS", "Leadership"],
-                    notes="Strong backend lead for cloud migration work.",
-                    department_id=1,
-                    created_by_id=1,
-                    status="active",
-                    created_at=now,
-                    updated_at=now,
-                ),
-                Contact(
-                    name="Siti Nurhaliza",
-                    email="siti@turcomp.com",
-                    phone="+60 3-2234 5678",
-                    position="Marketing Manager",
-                    skills=["Content Strategy", "Analytics", "Leadership"],
-                    notes="Experienced with cross-channel campaign execution.",
-                    department_id=2,
-                    created_by_id=1,
-                    status="active",
-                    created_at=now,
-                    updated_at=now,
-                ),
-            ]
-        )
-        db.commit()
+    def department_id(name: str) -> Optional[int]:
+        department = db.query(Department).filter(Department.name == name).first()
+        return department.id if department else None
 
-    if db.query(Job).count() == 0:
-        db.add(
-            Job(
-                title="Senior Software Engineer",
-                description="Lead backend services and cloud platform delivery.",
-                requirements=["Python", "AWS", "5+ years"],
-                department_id=1,
-                created_by_id=1,
-                status="open",
-                posted_date=now,
-                created_at=now,
-                updated_at=now,
-            )
-        )
-        db.commit()
+    def user_id(email: str) -> Optional[int]:
+        user = db.query(User).filter(User.email == email).first()
+        return user.id if user else None
 
-    if db.query(CommunityPost).count() == 0:
-        db.add(
-            CommunityPost(
-                content="Engineering is looking for cloud migration contributors.",
-                category="Opportunity",
-                author_id=1,
-                likes=4,
-                comments_count=0,
-                created_at=now,
-                updated_at=now,
-            )
-        )
+    def seed_department(name: str, description: str) -> Department:
+        department = db.query(Department).filter(Department.name == name).first()
+        values = {"description": description}
+        if department:
+            apply_values(department, values)
+        else:
+            department = Department(name=name, **values, created_at=now, updated_at=now)
+            db.add(department)
+        db.commit()
+        db.refresh(department)
+        return department
+
+    def seed_user(email: str, values: Dict[str, Any]) -> User:
+        user = db.query(User).filter(User.email == email).first()
+        if user:
+            update_values = values.copy()
+            update_values.pop("password", None)
+            apply_values(user, update_values)
+        else:
+            user = User(email=email, **values, created_at=now, updated_at=now)
+            db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    def seed_contact(email: str, values: Dict[str, Any]) -> Contact:
+        contact = db.query(Contact).filter(Contact.email == email).first()
+        if contact:
+            apply_values(contact, values)
+        else:
+            contact = Contact(email=email, **values, created_at=now, updated_at=now)
+            db.add(contact)
+        db.commit()
+        db.refresh(contact)
+        return contact
+
+    def seed_job(title: str, values: Dict[str, Any]) -> Job:
+        job = db.query(Job).filter(Job.title == title).first()
+        if job:
+            apply_values(job, values)
+        else:
+            job = Job(title=title, **values, posted_date=now, created_at=now, updated_at=now)
+            db.add(job)
+        db.commit()
+        db.refresh(job)
+        return job
+
+    def seed_post(content: str, values: Dict[str, Any]) -> CommunityPost:
+        posts = db.query(CommunityPost).filter(CommunityPost.content == content).order_by(CommunityPost.id).all()
+        if posts:
+            post = posts[0]
+            for duplicate in posts[1:]:
+                db.delete(duplicate)
+            apply_values(post, values)
+        else:
+            post = CommunityPost(content=content, **values, created_at=now, updated_at=now)
+            db.add(post)
+        db.commit()
+        db.refresh(post)
+        return post
+
+    def rewrite_seed_post(old_content: str, new_content: str) -> None:
+        post = db.query(CommunityPost).filter(CommunityPost.content == old_content).first()
+        if post:
+            post.content = new_content
+            post.updated_at = now
+            db.commit()
+
+    seed_department("Engineering", "Cloud, product, and platform engineering.")
+    seed_department("Marketing", "Brand, campaigns, and digital growth.")
+    seed_department("Operations", "Delivery, process improvement, and field coordination.")
+    seed_department("Data & Science", "Analytics, research, AI learning, and science discussion.")
+    seed_department("Creative & Hobbies", "Design, writing, photography, music, and hobby communities.")
+
+    seed_user(
+        "admin@turcomp.com",
+        {
+            "username": "admin",
+            "password": hash_password(DEFAULT_ADMIN_PASSWORD),
+            "first_name": "Turcomp",
+            "last_name": "Admin",
+            "phone": "+60 3-0000 0000",
+            "position": "Community Administrator",
+            "skills": ["Community Operations", "Coordination", "Mentorship Matching"],
+            "notes": "Seeded administrator account.",
+            "role": "admin",
+            "department_id": department_id("Engineering"),
+        },
+    )
+    seed_user(
+        "ahmad.mentor@turcomp.com",
+        {
+            "username": "ahmad.mentor",
+            "password": hash_password(DEFAULT_ADMIN_PASSWORD),
+            "first_name": "Ahmad",
+            "last_name": "Hassan",
+            "phone": "+60 3-1234 5678",
+            "position": "Cloud Mentor",
+            "skills": ["Python", "AWS", "System Design", "Mentorship"],
+            "notes": "Coaches backend engineers and cloud learners.",
+            "role": "user",
+            "department_id": department_id("Engineering"),
+        },
+    )
+    seed_user(
+        "siti.coach@turcomp.com",
+        {
+            "username": "siti.coach",
+            "password": hash_password(DEFAULT_ADMIN_PASSWORD),
+            "first_name": "Siti",
+            "last_name": "Nurhaliza",
+            "phone": "+60 3-2234 5678",
+            "position": "Content Coach",
+            "skills": ["Storytelling", "Content Strategy", "Analytics", "Coaching"],
+            "notes": "Helps community members refine campaigns and public writing.",
+            "role": "user",
+            "department_id": department_id("Marketing"),
+        },
+    )
+    seed_user(
+        "mei.science@turcomp.com",
+        {
+            "username": "mei.science",
+            "password": hash_password(DEFAULT_ADMIN_PASSWORD),
+            "first_name": "Mei",
+            "last_name": "Tan",
+            "phone": "+60 3-3234 5678",
+            "position": "Data Science Mentor",
+            "skills": ["Data Science", "Machine Learning", "Research Methods", "Science"],
+            "notes": "Hosts data and science learning circles.",
+            "role": "user",
+            "department_id": department_id("Data & Science"),
+        },
+    )
+    seed_user(
+        "danial.hobby@turcomp.com",
+        {
+            "username": "danial.hobby",
+            "password": hash_password(DEFAULT_ADMIN_PASSWORD),
+            "first_name": "Danial",
+            "last_name": "Rahman",
+            "phone": "+60 3-4234 5678",
+            "position": "Creative Community Lead",
+            "skills": ["Photography", "Design Critique", "Writing", "Hobby Groups"],
+            "notes": "Connects members around creative practice and hobby topics.",
+            "role": "user",
+            "department_id": department_id("Creative & Hobbies"),
+        },
+    )
+
+    leader_map = {
+        "Engineering": "ahmad.mentor@turcomp.com",
+        "Marketing": "siti.coach@turcomp.com",
+        "Operations": "admin@turcomp.com",
+        "Data & Science": "mei.science@turcomp.com",
+        "Creative & Hobbies": "danial.hobby@turcomp.com",
+    }
+    for department_name, leader_email in leader_map.items():
+        department = db.query(Department).filter(Department.name == department_name).first()
+        leader = db.query(User).filter(User.email == leader_email).first()
+        if department and leader and department.leader_id != leader.id:
+            department.leader_id = leader.id
+            department.updated_at = now
     db.commit()
+
+    seed_contact(
+        "ahmad.mentor@turcomp.com",
+        {
+            "name": "Ahmad Hassan",
+            "phone": "+60 3-1234 5678",
+            "position": "Cloud Mentor",
+            "skills": ["Python", "AWS", "Leadership", "Mentorship"],
+            "notes": "Available for backend coaching and cloud migration guidance.",
+            "department_id": department_id("Engineering"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "active",
+        },
+    )
+    seed_contact(
+        "siti.coach@turcomp.com",
+        {
+            "name": "Siti Nurhaliza",
+            "phone": "+60 3-2234 5678",
+            "position": "Content Coach",
+            "skills": ["Content Strategy", "Analytics", "Leadership", "Coaching"],
+            "notes": "Open to coaching on storytelling, campaign planning, and analytics.",
+            "department_id": department_id("Marketing"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "active",
+        },
+    )
+    seed_contact(
+        "mei.science@turcomp.com",
+        {
+            "name": "Mei Tan",
+            "phone": "+60 3-3234 5678",
+            "position": "Data Science Mentor",
+            "skills": ["Data Science", "Machine Learning", "Research", "Science"],
+            "notes": "Runs data literacy sessions and science discussion circles.",
+            "department_id": department_id("Data & Science"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "active",
+        },
+    )
+    seed_contact(
+        "danial.hobby@turcomp.com",
+        {
+            "name": "Danial Rahman",
+            "phone": "+60 3-4234 5678",
+            "position": "Creative Community Lead",
+            "skills": ["Photography", "Design", "Writing", "Hobbies"],
+            "notes": "Organizes creative prompts, hobby meetups, and portfolio feedback.",
+            "department_id": department_id("Creative & Hobbies"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "active",
+        },
+    )
+    seed_contact(
+        "priya.ops@turcomp.com",
+        {
+            "name": "Priya Nair",
+            "phone": "+60 3-5234 5678",
+            "position": "Operations Coach",
+            "skills": ["Process Improvement", "Facilitation", "Project Planning"],
+            "notes": "Supports members who want coaching on delivery workflows and planning habits.",
+            "department_id": department_id("Operations"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "active",
+        },
+    )
+
+    seed_job(
+        "Cloud Architecture Mentorship",
+        {
+            "description": "Weekly coaching for people learning backend systems and cloud delivery.",
+            "requirements": ["Python", "AWS", "System Design"],
+            "department_id": department_id("Engineering"),
+            "created_by_id": user_id("admin@turcomp.com"),
+            "status": "open",
+            "closing_date": "2026-07-31",
+        },
+    )
+    seed_job(
+        "Content Strategy Coaching",
+        {
+            "description": "One-to-one coaching for members improving campaign ideas, writing, and analytics.",
+            "requirements": ["Storytelling", "Analytics", "Marketing"],
+            "department_id": department_id("Marketing"),
+            "created_by_id": user_id("siti.coach@turcomp.com"),
+            "status": "open",
+            "closing_date": "2026-08-15",
+        },
+    )
+    seed_job(
+        "Data Science Study Circle",
+        {
+            "description": "A guided peer group for statistics, machine learning basics, and research thinking.",
+            "requirements": ["Data Science", "Machine Learning", "Science"],
+            "department_id": department_id("Data & Science"),
+            "created_by_id": user_id("mei.science@turcomp.com"),
+            "status": "open",
+            "closing_date": "2026-08-30",
+        },
+    )
+    seed_job(
+        "Creative Portfolio Feedback",
+        {
+            "description": "Casual coaching sessions for photography, design, writing, and hobby projects.",
+            "requirements": ["Design", "Photography", "Writing", "Hobbies"],
+            "department_id": department_id("Creative & Hobbies"),
+            "created_by_id": user_id("danial.hobby@turcomp.com"),
+            "status": "open",
+            "closing_date": "2026-09-15",
+        },
+    )
+
+    rewrite_seed_post(
+        "Offering a small group mentorship circle for Python, AWS, and system design this month.",
+        "Mentorship opening: Ahmad is hosting a four-week cloud architecture circle covering Python services, AWS foundations, and system design reviews.",
+    )
+    rewrite_seed_post(
+        "Engineering is looking for cloud migration contributors.",
+        "Mentorship opening: Ahmad is hosting a four-week cloud architecture circle covering Python services, AWS foundations, and system design reviews.",
+    )
+    rewrite_seed_post(
+        "Anyone working on public speaking or campaign storytelling? I can review outlines this week.",
+        "Coaching clinic: Siti is reviewing campaign narratives, presentation outlines, and content measurement plans for members preparing stakeholder updates.",
+    )
+    rewrite_seed_post(
+        "Starting a beginner-friendly discussion on machine learning myths, model evaluation, and science news.",
+        "Science forum: Mei is leading a beginner-friendly session on machine learning myths, evaluation basics, and how to read research claims critically.",
+    )
+    rewrite_seed_post(
+        "Weekend hobby thread: share a photo, sketch, playlist, or writing snippet you want feedback on.",
+        "Creative review thread: Danial is collecting photography, design, writing, and hobby project samples for constructive peer feedback this week.",
+    )
+    rewrite_seed_post(
+        "Use the People tab to search by email, role, skill, or expertise tag when you need a mentor fast.",
+        "Expertise directory tip: use People search to find mentors by email, role, skill, or topic tags before starting a coaching conversation.",
+    )
+
+    seed_post(
+        "Mentorship opening: Ahmad is hosting a four-week cloud architecture circle covering Python services, AWS foundations, and system design reviews.",
+        {
+            "category": "Mentorship",
+            "author_id": user_id("ahmad.mentor@turcomp.com"),
+            "likes": 14,
+            "comments_count": 0,
+        },
+    )
+    seed_post(
+        "Coaching clinic: Siti is reviewing campaign narratives, presentation outlines, and content measurement plans for members preparing stakeholder updates.",
+        {
+            "category": "Coaching",
+            "author_id": user_id("siti.coach@turcomp.com"),
+            "likes": 11,
+            "comments_count": 0,
+        },
+    )
+    seed_post(
+        "Science forum: Mei is leading a beginner-friendly session on machine learning myths, evaluation basics, and how to read research claims critically.",
+        {
+            "category": "Science",
+            "author_id": user_id("mei.science@turcomp.com"),
+            "likes": 16,
+            "comments_count": 0,
+        },
+    )
+    seed_post(
+        "Creative review thread: Danial is collecting photography, design, writing, and hobby project samples for constructive peer feedback this week.",
+        {
+            "category": "Hobby",
+            "author_id": user_id("danial.hobby@turcomp.com"),
+            "likes": 8,
+            "comments_count": 0,
+        },
+    )
+    seed_post(
+        "Expertise directory tip: use People search to find mentors by email, role, skill, or topic tags before starting a coaching conversation.",
+        {
+            "category": "Expertise",
+            "author_id": user_id("admin@turcomp.com"),
+            "likes": 10,
+            "comments_count": 0,
+        },
+    )
+    seed_post(
+        "Community guideline: keep posts specific, respectful, and action-oriented so members can quickly find the right mentor, coach, or discussion group.",
+        {
+            "category": "General",
+            "author_id": user_id("admin@turcomp.com"),
+            "likes": 6,
+            "comments_count": 0,
+        },
+    )
+
+    admin_user_id = user_id("admin@turcomp.com")
+    seed_token = db.get(AuthToken, "seed-expired-password-reset-token")
+    if not seed_token and admin_user_id:
+        db.add(
+            AuthToken(
+                token="seed-expired-password-reset-token",
+                user_id=admin_user_id,
+                token_type="password_reset",
+                expires_at=now - timedelta(days=1),
+            )
+        )
+        db.commit()
 
 
 @app.on_event("startup")
@@ -709,7 +986,7 @@ def list_departments(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     query = db.query(Department).order_by(Department.name)
-    return paginate(query, page, per_page, department_to_dict)
+    return paginate(query, page, per_page, lambda department: department_to_dict(department, db))
 
 
 @app.get("/api/departments/{department_id}")
@@ -721,7 +998,7 @@ def get_department(
     department = db.get(Department, department_id)
     if not department:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Department not found")
-    return department_to_dict(department)
+    return department_to_dict(department, db)
 
 
 @app.post("/api/departments")
@@ -735,7 +1012,7 @@ def create_department(
     db.add(department)
     db.commit()
     db.refresh(department)
-    return department_to_dict(department)
+    return department_to_dict(department, db)
 
 
 @app.put("/api/departments/{department_id}")
@@ -753,7 +1030,7 @@ def update_department(
     department.updated_at = utc_now()
     db.commit()
     db.refresh(department)
-    return department_to_dict(department)
+    return department_to_dict(department, db)
 
 
 @app.get("/api/departments/{department_id}/members")
@@ -761,12 +1038,12 @@ def department_members(
     department_id: int,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     query = (
         db.query(Contact)
-        .filter(Contact.department_id == department_id, Contact.created_by_id == current_user.id)
+        .filter(Contact.department_id == department_id)
         .order_by(Contact.name)
     )
     return paginate(query, page, per_page, lambda contact: contact_to_dict(db, contact))
@@ -779,10 +1056,10 @@ def list_contacts(
     department_id: Optional[int] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    query = db.query(Contact).filter(Contact.created_by_id == current_user.id)
+    query = db.query(Contact)
     if department_id:
         query = query.filter(Contact.department_id == department_id)
     if status_filter:
@@ -794,6 +1071,7 @@ def list_contacts(
                 Contact.name.ilike(needle),
                 Contact.email.ilike(needle),
                 Contact.position.ilike(needle),
+                cast(Contact.skills, String).ilike(needle),
             )
         )
     query = query.order_by(Contact.created_at.desc())
@@ -803,11 +1081,11 @@ def list_contacts(
 @app.get("/api/contacts/{contact_id}")
 def get_contact(
     contact_id: int,
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     contact = db.get(Contact, contact_id)
-    if not contact or contact.created_by_id != current_user.id:
+    if not contact:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
     return contact_to_dict(db, contact)
 
@@ -864,10 +1142,10 @@ def list_jobs(
     per_page: int = Query(20, ge=1, le=100),
     department_id: Optional[int] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    query = db.query(Job).filter(Job.created_by_id == current_user.id)
+    query = db.query(Job)
     if department_id:
         query = query.filter(Job.department_id == department_id)
     if status_filter:
@@ -879,11 +1157,11 @@ def list_jobs(
 @app.get("/api/jobs/{job_id}")
 def get_job(
     job_id: int,
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     job = db.get(Job, job_id)
-    if not job or job.created_by_id != current_user.id:
+    if not job:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
     return job_to_dict(db, job)
 
@@ -942,11 +1220,11 @@ def list_community(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    query = db.query(CommunityPost).filter(CommunityPost.author_id == current_user.id)
+    query = db.query(CommunityPost)
     if category:
         query = query.filter(CommunityPost.category == category)
     query = query.order_by(CommunityPost.created_at.desc())
-    return paginate(query, page, per_page, post_to_dict)
+    return paginate(query, page, per_page, lambda post: post_to_dict(db, post))
 
 
 @app.get("/api/community/{post_id}")
@@ -956,9 +1234,9 @@ def get_post(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     post = db.get(CommunityPost, post_id)
-    if not post or post.author_id != current_user.id:
+    if not post:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
-    return post_to_dict(post)
+    return post_to_dict(db, post)
 
 
 @app.post("/api/community")
@@ -979,7 +1257,7 @@ def create_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    return post_to_dict(post)
+    return post_to_dict(db, post)
 
 
 @app.put("/api/community/{post_id}")
@@ -997,7 +1275,7 @@ def update_post(
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(post)
+    return post_to_dict(db, post)
 
 
 @app.delete("/api/community/{post_id}")
@@ -1021,10 +1299,10 @@ def like_post(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     post = db.get(CommunityPost, post_id)
-    if not post or post.author_id != current_user.id:
+    if not post:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
     post.likes += 1
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(post)
+    return post_to_dict(db, post)

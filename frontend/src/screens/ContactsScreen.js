@@ -18,6 +18,7 @@ import { colors } from "../utils/helpers";
 const ContactsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { items, loading, error, pagination } = useSelector((state) => state.contacts);
+  const user = useSelector((state) => state.auth.user);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -40,7 +41,7 @@ const ContactsScreen = ({ navigation }) => {
   }, [loadContacts]);
 
   const confirmDelete = (contact) => {
-    Alert.alert("Delete contact", `Remove ${contact.name} from iTalent?`, [
+    Alert.alert("Delete profile", `Remove ${contact.name} from iTalent?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -57,8 +58,8 @@ const ContactsScreen = ({ navigation }) => {
     <View style={styles.screen}>
       <View style={styles.toolbar}>
         <View style={styles.toolbarText}>
-          <Text style={styles.title}>Contacts</Text>
-          <Text style={styles.subtitle}>{pagination.total || items.length} people in the network</Text>
+          <Text style={styles.title}>People</Text>
+          <Text style={styles.subtitle}>{pagination.total || items.length} people sharing expertise</Text>
         </View>
         <Pressable style={styles.addButton} onPress={() => navigation.navigate("AddContact")}>
           <Text style={styles.addButtonText}>Add</Text>
@@ -67,7 +68,7 @@ const ContactsScreen = ({ navigation }) => {
 
       <FormInput
         value={search}
-        placeholder="Search by name, email, position, or skill"
+        placeholder="Search name, email, expertise, role, or skill"
         autoCapitalize="none"
         onChangeText={(value) => {
           setSearch(value);
@@ -79,7 +80,7 @@ const ContactsScreen = ({ navigation }) => {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading && items.length === 0 ? (
-        <LoadingSpinner label="Loading contacts" fullScreen />
+        <LoadingSpinner label="Loading people" fullScreen />
       ) : (
         <FlatList
           data={items}
@@ -90,14 +91,18 @@ const ContactsScreen = ({ navigation }) => {
             <ContactCard
               contact={item}
               onPress={() => navigation.navigate("ContactDetails", { contactId: item.id })}
-              onEdit={() => navigation.navigate("ContactDetails", { contactId: item.id, edit: true })}
-              onDelete={() => confirmDelete(item)}
+              onEdit={
+                item.created_by_id === user?.id
+                  ? () => navigation.navigate("ContactDetails", { contactId: item.id, edit: true })
+                  : undefined
+              }
+              onDelete={item.created_by_id === user?.id ? () => confirmDelete(item) : undefined}
             />
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No contacts found</Text>
-              <Text style={styles.emptyCopy}>Try another search or add the first contact.</Text>
+              <Text style={styles.emptyTitle}>No people found</Text>
+              <Text style={styles.emptyCopy}>Try another search or add the first community profile.</Text>
             </View>
           }
           ListFooterComponent={

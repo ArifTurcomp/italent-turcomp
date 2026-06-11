@@ -39,9 +39,9 @@ const AddContactScreen = ({ navigation }) => {
     const nextErrors = {};
     if (!values.name.trim()) nextErrors.name = "Name is required.";
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
-    if (!values.position.trim()) nextErrors.position = "Position is required.";
+    if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
     if (values.department_id && Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Department ID must be a number.";
+      nextErrors.department_id = "Group ID must be a number.";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -74,8 +74,8 @@ const AddContactScreen = ({ navigation }) => {
       style={styles.screen}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Add Contact</Text>
-        <Text style={styles.subtitle}>Create a talent profile for matching and follow-up.</Text>
+        <Text style={styles.title}>Add Person</Text>
+        <Text style={styles.subtitle}>Create a community profile for mentorship, coaching, and expertise sharing.</Text>
 
         <FormInput
           label="Full Name"
@@ -92,29 +92,30 @@ const AddContactScreen = ({ navigation }) => {
           onChangeText={(value) => updateValue("email", value)}
         />
         <FormInput
-          label="Phone"
+          label="Phone (private)"
           value={values.phone}
           keyboardType="phone-pad"
+          helperText="Stored for follow-up only; phone numbers are not shown on public cards."
           onChangeText={(value) => updateValue("phone", value)}
         />
         <FormInput
-          label="Position"
+          label="Expertise / Role"
           value={values.position}
           error={errors.position}
           onChangeText={(value) => updateValue("position", value)}
         />
         <FormInput
-          label="Department ID"
+          label="Group ID"
           value={values.department_id}
           error={errors.department_id}
           keyboardType="number-pad"
-          helperText="Use the numeric department ID from the backend."
+          helperText="Use the numeric group ID from the backend."
           onChangeText={(value) => updateValue("department_id", value)}
         />
         <FormInput
-          label="Skills"
+          label="Expertise Tags"
           value={values.skills}
-          helperText="Separate skills with commas."
+          helperText="Separate expertise, coaching topics, or interests with commas."
           onChangeText={(value) => updateValue("skills", value)}
         />
         <FormInput
@@ -131,7 +132,7 @@ const AddContactScreen = ({ navigation }) => {
           style={[styles.primaryButton, saving && styles.disabledButton]}
           onPress={handleSubmit}
         >
-          {saving ? <LoadingSpinner size="small" /> : <Text style={styles.primaryText}>Create Contact</Text>}
+          {saving ? <LoadingSpinner size="small" /> : <Text style={styles.primaryText}>Create Profile</Text>}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

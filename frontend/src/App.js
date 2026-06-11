@@ -58,12 +58,12 @@ const AppNavigator = () => (
     <AppStack.Screen
       name="ContactDetails"
       component={ContactDetailsScreen}
-      options={{ title: "Contact Details" }}
+      options={{ title: "Profile Details" }}
     />
     <AppStack.Screen
       name="AddContact"
       component={AddContactScreen}
-      options={{ title: "Add Contact" }}
+      options={{ title: "Add Person" }}
     />
   </AppStack.Navigator>
 );

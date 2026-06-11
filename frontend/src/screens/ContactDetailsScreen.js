@@ -35,6 +35,7 @@ const ContactDetailsScreen = ({ route, navigation }) => {
   const { contactId, edit } = route.params || {};
   const dispatch = useDispatch();
   const { selectedContact, loading, saving, error } = useSelector((state) => state.contacts);
+  const user = useSelector((state) => state.auth.user);
   const [isEditing, setIsEditing] = useState(Boolean(edit));
   const [values, setValues] = useState(makeForm());
   const [errors, setErrors] = useState({});
@@ -48,6 +49,12 @@ const ContactDetailsScreen = ({ route, navigation }) => {
     if (selectedContact) setValues(makeForm(selectedContact));
   }, [selectedContact]);
 
+  const canManage = selectedContact?.created_by_id === user?.id;
+
+  useEffect(() => {
+    if (selectedContact && !canManage) setIsEditing(false);
+  }, [canManage, selectedContact]);
+
   const updateValue = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
@@ -57,9 +64,9 @@ const ContactDetailsScreen = ({ route, navigation }) => {
     const nextErrors = {};
     if (!values.name.trim()) nextErrors.name = "Name is required.";
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
-    if (!values.position.trim()) nextErrors.position = "Position is required.";
+    if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
     if (values.department_id && Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Department ID must be a number.";
+      nextErrors.department_id = "Group ID must be a number.";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -86,7 +93,7 @@ const ContactDetailsScreen = ({ route, navigation }) => {
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete contact", `Remove ${selectedContact?.name || "this contact"}?`, [
+    Alert.alert("Delete profile", `Remove ${selectedContact?.name || "this profile"}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -104,13 +111,13 @@ const ContactDetailsScreen = ({ route, navigation }) => {
   };
 
   if (loading && !selectedContact) {
-    return <LoadingSpinner label="Loading contact" fullScreen />;
+    return <LoadingSpinner label="Loading profile" fullScreen />;
   }
 
   if (!selectedContact) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Contact not found</Text>
+        <Text style={styles.emptyTitle}>Profile not found</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
     );
@@ -129,9 +136,11 @@ const ContactDetailsScreen = ({ route, navigation }) => {
               Updated {formatDate(selectedContact.updated_at || selectedContact.created_at)}
             </Text>
           </View>
-          <Pressable style={styles.secondaryButton} onPress={() => setIsEditing((value) => !value)}>
-            <Text style={styles.secondaryText}>{isEditing ? "Cancel" : "Edit"}</Text>
-          </Pressable>
+          {canManage ? (
+            <Pressable style={styles.secondaryButton} onPress={() => setIsEditing((value) => !value)}>
+              <Text style={styles.secondaryText}>{isEditing ? "Cancel" : "Edit"}</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <FormInput
@@ -151,21 +160,22 @@ const ContactDetailsScreen = ({ route, navigation }) => {
           onChangeText={(value) => updateValue("email", value)}
         />
         <FormInput
-          label="Phone"
+          label="Phone (private)"
           value={values.phone}
           editable={isEditing}
           keyboardType="phone-pad"
+          helperText={isEditing ? "Stored for follow-up only; phone numbers are not shown on public cards." : ""}
           onChangeText={(value) => updateValue("phone", value)}
         />
         <FormInput
-          label="Position"
+          label="Expertise / Role"
           value={values.position}
           editable={isEditing}
           error={errors.position}
           onChangeText={(value) => updateValue("position", value)}
         />
         <FormInput
-          label="Department ID"
+          label="Group ID"
           value={values.department_id}
           editable={isEditing}
           error={errors.department_id}
@@ -173,10 +183,10 @@ const ContactDetailsScreen = ({ route, navigation }) => {
           onChangeText={(value) => updateValue("department_id", value)}
         />
         <FormInput
-          label="Skills"
+          label="Expertise Tags"
           value={values.skills}
           editable={isEditing}
-          helperText={isEditing ? "Separate skills with commas." : ""}
+          helperText={isEditing ? "Separate expertise, coaching topics, or interests with commas." : ""}
           onChangeText={(value) => updateValue("skills", value)}
         />
         <FormInput
@@ -206,9 +216,11 @@ const ContactDetailsScreen = ({ route, navigation }) => {
           </Pressable>
         ) : null}
 
-        <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteText}>Delete Contact</Text>
-        </Pressable>
+        {canManage ? (
+          <Pressable style={styles.deleteButton} onPress={handleDelete}>
+            <Text style={styles.deleteText}>Delete Profile</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

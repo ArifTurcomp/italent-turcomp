@@ -53,7 +53,7 @@ const LoginScreen = ({ navigation }) => {
       <View style={styles.panel}>
         <TurcompLogo />
         <Text style={styles.brand}>iTalent</Text>
-        <Text style={styles.subtitle}>Sign in to manage contacts, roles, and opportunities.</Text>
+        <Text style={styles.subtitle}>Sign in to join the community, find expertise, and share mentorship or coaching.</Text>
 
         <FormInput
           label="Email"

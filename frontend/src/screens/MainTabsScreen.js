@@ -13,9 +13,9 @@ import SettingsScreen from "./SettingsScreen";
 
 const tabs = [
   { key: "Dashboard", label: "Dashboard" },
-  { key: "Departments", label: "Departments" },
-  { key: "Contacts", label: "Contacts" },
-  { key: "Jobs", label: "Job Offerings" },
+  { key: "Departments", label: "Groups" },
+  { key: "Contacts", label: "People" },
+  { key: "Jobs", label: "Mentorship" },
   { key: "Community", label: "Community" },
   { key: "Settings", label: "Settings" }
 ];
@@ -43,7 +43,7 @@ const MainTabsScreen = ({ navigation }) => {
           <View style={styles.brandCopy}>
             <Text style={styles.brandTitle}>Turcomp iTalent</Text>
             <Text style={styles.brandSubtitle} numberOfLines={1}>
-              {displayName || "Community talent network"}
+              {displayName || "Community mentorship network"}
             </Text>
           </View>
           <Pressable style={styles.logoutButton} onPress={() => dispatch(logoutUser())}>

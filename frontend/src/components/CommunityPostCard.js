@@ -6,7 +6,7 @@ import { colors, formatDate, getInitials } from "../utils/helpers";
 /**
  * Displays a community post with author, category, and like action.
  */
-const CommunityPostCard = ({ post, authorName, onLike }) => (
+const CommunityPostCard = ({ post, authorName, authorEmail, onLike }) => (
   <View style={styles.card}>
     <View style={styles.header}>
       <View style={styles.avatar}>
@@ -19,7 +19,10 @@ const CommunityPostCard = ({ post, authorName, onLike }) => (
             <Text style={styles.badgeText}>{post.category || "General"}</Text>
           </View>
         </View>
-        <Text style={styles.time}>{formatDate(post.created_at)}</Text>
+        <Text style={styles.time}>
+          {authorEmail ? `${authorEmail} | ` : ""}
+          {formatDate(post.created_at)}
+        </Text>
       </View>
     </View>
     <Text style={styles.content}>{post.content}</Text>
@@ -41,11 +44,13 @@ CommunityPostCard.propTypes = {
     created_at: PropTypes.string
   }).isRequired,
   authorName: PropTypes.string,
+  authorEmail: PropTypes.string,
   onLike: PropTypes.func
 };
 
 CommunityPostCard.defaultProps = {
   authorName: "Turcomp Team",
+  authorEmail: "",
   onLike: undefined
 };
 

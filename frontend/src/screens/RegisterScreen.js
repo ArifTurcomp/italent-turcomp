@@ -45,11 +45,11 @@ const RegisterScreen = ({ navigation }) => {
     if (!values.username.trim()) nextErrors.username = "Username is required.";
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
     if (!values.phone.trim()) nextErrors.phone = "Phone number is required.";
-    if (!values.position.trim()) nextErrors.position = "Position is required.";
+    if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
     if (!values.department_id.trim()) {
-      nextErrors.department_id = "Department ID is required.";
+      nextErrors.department_id = "Group ID is required.";
     } else if (Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Department ID must be a number.";
+      nextErrors.department_id = "Group ID must be a number.";
     }
     if (values.password.length < 8) nextErrors.password = "Use at least 8 characters.";
     if (values.password !== values.confirmPassword) {
@@ -95,7 +95,7 @@ const RegisterScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TurcompLogo />
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join the talent network and start managing contacts.</Text>
+        <Text style={styles.subtitle}>Join the community to share expertise, mentorship, coaching, and topics you care about.</Text>
 
         <FormInput
           label="First Name"
@@ -125,30 +125,31 @@ const RegisterScreen = ({ navigation }) => {
           onChangeText={(value) => updateValue("email", value)}
         />
         <FormInput
-          label="Phone Number"
+          label="Phone Number (private)"
           value={values.phone}
           error={errors.phone}
           keyboardType="phone-pad"
+          helperText="Stored for account follow-up only; phone numbers are not shown on public cards."
           onChangeText={(value) => updateValue("phone", value)}
         />
         <FormInput
-          label="Position"
+          label="Expertise / Role"
           value={values.position}
           error={errors.position}
           onChangeText={(value) => updateValue("position", value)}
         />
         <FormInput
-          label="Department ID"
+          label="Group ID"
           value={values.department_id}
           error={errors.department_id}
           keyboardType="numeric"
-          helperText="Use the numeric department ID."
+          helperText="Use the numeric group ID."
           onChangeText={(value) => updateValue("department_id", value)}
         />
         <FormInput
-          label="Skills"
+          label="Expertise Tags"
           value={values.skills}
-          helperText="Separate skills with commas."
+          helperText="Separate expertise, coaching topics, or interests with commas."
           onChangeText={(value) => updateValue("skills", value)}
         />
         <FormInput

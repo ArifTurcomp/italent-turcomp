@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, joinList } from "../utils/helpers";
 
 /**
- * Displays a job offering with department, status, and requirements.
+ * Displays a mentorship or coaching offer with group, status, and focus areas.
  */
 const JobCard = ({ job }) => {
   const department = job.department?.name || job.department || "Unassigned";
@@ -22,9 +22,9 @@ const JobCard = ({ job }) => {
         </View>
       </View>
       <Text style={styles.description}>{job.description}</Text>
-      {requirements ? <Text style={styles.requirements}>Required: {requirements}</Text> : null}
+      {requirements ? <Text style={styles.requirements}>Focus areas: {requirements}</Text> : null}
       <Pressable style={styles.matchButton}>
-        <Text style={styles.matchText}>Find Matches</Text>
+        <Text style={styles.matchText}>Find People</Text>
       </Pressable>
     </View>
   );

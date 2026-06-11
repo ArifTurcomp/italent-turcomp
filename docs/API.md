@@ -9,7 +9,7 @@ Auth:
 - `POST /auth/refresh`
 - `POST /auth/logout`
 
-Departments:
+Departments / Groups:
 
 - `GET /departments?page=1&per_page=20`
 - `GET /departments/{id}`
@@ -17,15 +17,15 @@ Departments:
 - `PUT /departments/{id}`
 - `GET /departments/{id}/members`
 
-Contacts:
+Contacts / People:
 
-- `GET /contacts?page=1&per_page=20&department_id=1&status=active&search=Ahmed`
+- `GET /contacts?page=1&per_page=20&department_id=1&status=active&search=AWS`
 - `GET /contacts/{id}`
 - `POST /contacts`
 - `PUT /contacts/{id}`
 - `DELETE /contacts/{id}`
 
-Jobs:
+Mentorship / Coaching Offers:
 
 - `GET /jobs?page=1&per_page=20&department_id=1&status=open`
 - `GET /jobs/{id}`
@@ -35,9 +35,11 @@ Jobs:
 
 Community:
 
-- `GET /community?page=1&per_page=20&category=Announcement`
+- `GET /community?page=1&per_page=20&category=Mentorship`
 - `GET /community/{id}`
 - `POST /community`
 - `PUT /community/{id}`
 - `DELETE /community/{id}`
 - `POST /community/{id}/like`
+
+Community reads and likes are public to authenticated users. Updates and deletes remain limited to the post author.

@@ -21,7 +21,8 @@ const DashboardScreen = ({ onNavigate }) => {
   const contacts = useSelector((state) => state.contacts);
   const departments = useSelector((state) => state.departments.items);
   const jobs = useSelector((state) => state.jobs);
-  const community = useSelector((state) => state.community.posts);
+  const communityState = useSelector((state) => state.community);
+  const community = communityState.posts;
 
   useEffect(() => {
     dispatch(fetchContacts({ page: 1, per_page: 20 }));
@@ -30,27 +31,32 @@ const DashboardScreen = ({ onNavigate }) => {
     dispatch(fetchCommunityPosts({ page: 1, per_page: 20 }));
   }, [dispatch]);
 
-  const openJobs = jobs.items.filter((job) => (job.status || "open") === "open").length;
+  const openOffers = jobs.pagination.total || jobs.items.filter((job) => (job.status || "open") === "open").length;
+  const groupMemberTotal = departments.reduce(
+    (total, department) => total + (department.members_count || 0),
+    0
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Turcomp iTalent Community</Text>
         <Text style={styles.heroText}>
-          Connect talented professionals across departments and match them with job opportunities.
+          Find people by expertise, share public topics, and connect through mentorship or coaching.
         </Text>
       </View>
 
       <View style={styles.statsGrid}>
-        <StatCard label="Total Contacts" value={contacts.pagination.total || contacts.items.length} />
-        <StatCard label="Departments" value={departments.length} />
-        <StatCard label="Open Positions" value={openJobs} />
-        <StatCard label="Community Posts" value={community.length} />
+        <StatCard label="People Added" value={contacts.pagination.total || contacts.items.length} />
+        <StatCard label="Groups" value={departments.length} />
+        <StatCard label="Group Members" value={groupMemberTotal || contacts.pagination.total || contacts.items.length} />
+        <StatCard label="Mentorship & Coaching" value={openOffers} />
+        <StatCard label="Community Posts" value={communityState.pagination.total || community.length} />
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Departments</Text>
+          <Text style={styles.sectionTitle}>Groups</Text>
           <Pressable onPress={() => onNavigate("Departments")}>
             <Text style={styles.link}>View all</Text>
           </Pressable>
@@ -65,7 +71,7 @@ const DashboardScreen = ({ onNavigate }) => {
             </View>
             <View style={styles.countBadge}>
               <Text style={styles.countText}>
-                {contacts.items.filter((item) => item.department_id === department.id).length}
+                {department.members_count || contacts.items.filter((item) => item.department_id === department.id).length}
               </Text>
             </View>
           </View>
