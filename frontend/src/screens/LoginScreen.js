@@ -99,11 +99,14 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
     padding: 20
   },
   panel: {
+    width: "100%",
+    maxWidth: 420,
     backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
