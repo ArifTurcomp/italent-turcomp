@@ -23,6 +23,8 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("mysql://"):
+    DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
 
 DATABASE_DIALECT = DATABASE_URL.split(":", 1)[0].split("+", 1)[0]
 DATABASE_CONNECT_RETRIES = max(1, _int_env("DATABASE_CONNECT_RETRIES", 30))

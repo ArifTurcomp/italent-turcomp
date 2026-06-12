@@ -90,10 +90,11 @@ EXPO_PUBLIC_API_BASE_URL=https://your-backend-domain.example/api
 For a personal prototype, use Render Free for the FastAPI web service and Aiven Free PostgreSQL or MySQL for the database.
 
 1. Create a free Aiven database service.
-2. Copy its service URI into Render as `DATABASE_URL`. PostgreSQL URIs that start with `postgres://` are supported.
+2. Copy its service URI into Render as `DATABASE_URL`. PostgreSQL URIs that start with `postgres://` and MySQL URIs that start with `mysql://` are supported.
 
 ```text
 postgres://USER:PASSWORD@HOST:PORT/defaultdb?sslmode=require
+mysql://USER:PASSWORD@HOST:PORT/defaultdb
 ```
 
 3. In Render, create a new Blueprint from this GitHub repository. Render will read `render.yaml` and create the `italent-backend` web service from the `backend` folder.
@@ -101,6 +102,8 @@ postgres://USER:PASSWORD@HOST:PORT/defaultdb?sslmode=require
 
 ```text
 DATABASE_URL=postgres://USER:PASSWORD@HOST:PORT/defaultdb?sslmode=require
+# or
+DATABASE_URL=mysql://USER:PASSWORD@HOST:PORT/defaultdb
 CORS_ORIGINS=https://your-vercel-app.vercel.app
 DEFAULT_ADMIN_PASSWORD=use-a-strong-password-here
 ```
