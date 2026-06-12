@@ -1,4 +1,5 @@
 ﻿from datetime import timedelta
+import logging
 from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
@@ -7,10 +8,11 @@ from app.config import APP_ENV, DEFAULT_ADMIN_PASSWORD
 from app.models import *  # noqa: F401,F403
 from app.services import hash_password, utc_now
 
+logger = logging.getLogger(__name__)
+
+
 def seed_database(db: Session) -> None:
     now = utc_now()
-    if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
-        return
 
     def apply_values(instance: Any, values: Dict[str, Any]) -> None:
         for key, value in values.items():
@@ -251,6 +253,10 @@ def seed_database(db: Session) -> None:
     seed_department("Cybersecurity", "Security awareness, risk reviews, access control, and incident readiness.")
     seed_department("Cloud & DevOps", "Infrastructure, CI/CD, reliability, monitoring, and deployment practice.")
     seed_department("Internship Program", "Intern mentorship, early-career development, and project placement.")
+
+    if APP_ENV == "production" and not DEFAULT_ADMIN_PASSWORD:
+        logger.warning("Seeded groups only. Set DEFAULT_ADMIN_PASSWORD to seed demo users and content.")
+        return
 
     seed_user(
         "admin@turcomp.com",
