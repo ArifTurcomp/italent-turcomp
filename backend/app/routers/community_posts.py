@@ -15,7 +15,7 @@ def list_community(
     if category:
         query = query.filter(CommunityPost.category == category)
     query = query.order_by(CommunityPost.created_at.desc())
-    return paginate(query, page, per_page, lambda post: post_to_dict(db, post))
+    return paginate(query, page, per_page, lambda post: post_to_dict(db, post, current_user.id))
 
 
 @router.get("/api/community/{post_id}")
@@ -27,7 +27,7 @@ def get_post(
     post = db.get(CommunityPost, post_id)
     if not post:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.post("/api/community")
@@ -48,7 +48,7 @@ def create_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.put("/api/community/{post_id}")
@@ -66,8 +66,7 @@ def update_post(
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.delete("/api/community/{post_id}")
@@ -98,7 +97,7 @@ def like_post(
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.get("/api/community/{post_id}/comments")
@@ -203,25 +202,36 @@ def react_to_post(
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.post("/api/community/{post_id}/bookmark")
-def bookmark_post(post_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, str]:
-    if not db.get(CommunityPost, post_id):
+def bookmark_post(post_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
+    post = db.get(CommunityPost, post_id)
+    if not post:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
     existing = db.query(PostBookmark).filter(PostBookmark.post_id == post_id, PostBookmark.user_id == current_user.id).first()
-    if not existing:
+    is_bookmarked = True
+    if existing:
+        db.delete(existing)
+        is_bookmarked = False
+    else:
         db.add(PostBookmark(post_id=post_id, user_id=current_user.id, created_at=utc_now()))
-        db.commit()
-    return {"message": "Bookmarked"}
+    db.commit()
+    bookmark_count = db.query(PostBookmark).filter(PostBookmark.post_id == post_id).count()
+    return {
+        "message": "Bookmarked" if is_bookmarked else "Unbookmarked",
+        "post_id": post_id,
+        "is_bookmarked": is_bookmarked,
+        "bookmark_count": bookmark_count,
+    }
 
 
 @router.get("/api/bookmarks")
 def list_bookmarks(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
     rows = db.query(PostBookmark).filter(PostBookmark.user_id == current_user.id).order_by(PostBookmark.created_at.desc()).all()
     posts = [db.get(CommunityPost, row.post_id) for row in rows]
-    return {"items": [post_to_dict(db, post) for post in posts if post]}
+    return {"items": [post_to_dict(db, post, current_user.id) for post in posts if post]}
 
 
 @router.post("/api/community/{post_id}/poll-vote")
@@ -272,7 +282,7 @@ def share_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.put("/api/community/{post_id}/schedule")
@@ -289,7 +299,7 @@ def schedule_post(
     post.updated_at = utc_now()
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
 
 
 @router.put("/api/community/{post_id}/pin")

@@ -6,7 +6,7 @@ import { colors, joinList } from "../utils/helpers";
 /**
  * Displays a mentorship or coaching offer with group, status, and focus areas.
  */
-const JobCard = ({ job }) => {
+const JobCard = ({ job, onFindPeople }) => {
   const department = job.department?.name || job.department || "Unassigned";
   const requirements = joinList(job.requirements);
 
@@ -23,7 +23,7 @@ const JobCard = ({ job }) => {
       </View>
       <Text style={styles.description}>{job.description}</Text>
       {requirements ? <Text style={styles.requirements}>Focus areas: {requirements}</Text> : null}
-      <Pressable style={styles.matchButton}>
+      <Pressable style={styles.matchButton} onPress={onFindPeople}>
         <Text style={styles.matchText}>Find People</Text>
       </Pressable>
     </View>
@@ -37,7 +37,12 @@ JobCard.propTypes = {
     requirements: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     department: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     status: PropTypes.string
-  }).isRequired
+  }).isRequired,
+  onFindPeople: PropTypes.func
+};
+
+JobCard.defaultProps = {
+  onFindPeople: undefined
 };
 
 const styles = StyleSheet.create({

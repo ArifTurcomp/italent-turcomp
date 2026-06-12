@@ -15,11 +15,11 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { deleteContact, fetchContacts } from "../store/store";
 import { colors } from "../utils/helpers";
 
-const ContactsScreen = ({ navigation }) => {
+const ContactsScreen = ({ navigation, initialSearch = "" }) => {
   const dispatch = useDispatch();
   const { items, loading, error, pagination } = useSelector((state) => state.contacts);
   const user = useSelector((state) => state.auth.user);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
 
   const query = useMemo(

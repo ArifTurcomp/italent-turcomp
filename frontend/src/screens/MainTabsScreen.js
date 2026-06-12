@@ -24,13 +24,23 @@ const MainTabsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [peopleSearch, setPeopleSearch] = useState("");
   const displayName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
 
+  const navigateTab = (tab, options = {}) => {
+    if (tab === "Contacts" && Object.prototype.hasOwnProperty.call(options, "search")) {
+      setPeopleSearch(options.search || "");
+    }
+    setActiveTab(tab);
+  };
+
   const renderScreen = () => {
-    if (activeTab === "Dashboard") return <DashboardScreen onNavigate={setActiveTab} />;
-    if (activeTab === "Departments") return <DepartmentsScreen onNavigate={setActiveTab} />;
-    if (activeTab === "Contacts") return <ContactsScreen navigation={navigation} />;
-    if (activeTab === "Jobs") return <JobsScreen />;
+    if (activeTab === "Dashboard") return <DashboardScreen onNavigate={navigateTab} />;
+    if (activeTab === "Departments") return <DepartmentsScreen onNavigate={navigateTab} />;
+    if (activeTab === "Contacts") {
+      return <ContactsScreen navigation={navigation} initialSearch={peopleSearch} />;
+    }
+    if (activeTab === "Jobs") return <JobsScreen onNavigate={navigateTab} />;
     if (activeTab === "Community") return <CommunityScreen />;
     return <SettingsScreen />;
   };
@@ -61,7 +71,9 @@ const MainTabsScreen = ({ navigation }) => {
               <Pressable
                 key={tab.key}
                 style={[styles.tab, active && styles.activeTab]}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() =>
+                  navigateTab(tab.key, tab.key === "Contacts" ? { search: "" } : {})
+                }
               >
                 <Text style={[styles.tabText, active && styles.activeTabText]}>{tab.label}</Text>
               </Pressable>

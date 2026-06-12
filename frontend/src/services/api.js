@@ -79,7 +79,13 @@ const api = {
     create: (payload) => unwrap(apiClient.post("/community", payload)),
     update: (id, payload) => unwrap(apiClient.put(`/community/${id}`, payload)),
     remove: (id) => unwrap(apiClient.delete(`/community/${id}`)),
-    like: (id) => unwrap(apiClient.post(`/community/${id}/like`))
+    like: (id) => unwrap(apiClient.post(`/community/${id}/like`)),
+    react: (id, payload) => unwrap(apiClient.post(`/community/${id}/react`, payload)),
+    bookmark: (id) => unwrap(apiClient.post(`/community/${id}/bookmark`)),
+    comments: (id, params = {}) =>
+      unwrap(apiClient.get(`/community/${id}/comments`, { params })),
+    comment: (id, payload) => unwrap(apiClient.post(`/community/${id}/comments`, payload)),
+    pollVote: (id, payload) => unwrap(apiClient.post(`/community/${id}/poll-vote`, payload))
   }
 };
 

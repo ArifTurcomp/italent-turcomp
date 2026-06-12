@@ -7,7 +7,17 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { createJob, fetchJobs } from "../store/store";
 import { colors, splitCsv } from "../utils/helpers";
 
-const JobsScreen = () => {
+const getPeopleSearchTerm = (job) => {
+  const focusAreas = Array.isArray(job.requirements)
+    ? job.requirements
+    : String(job.requirements || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+  return focusAreas[0] || job.title || "";
+};
+
+const JobsScreen = ({ onNavigate }) => {
   const dispatch = useDispatch();
   const { items, loading, saving, error } = useSelector((state) => state.jobs);
   const [showForm, setShowForm] = useState(false);
@@ -87,7 +97,13 @@ const JobsScreen = () => {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading && items.length === 0 ? <LoadingSpinner label="Loading offers" /> : null}
       {items.map((job) => (
-        <JobCard key={job.id} job={job} />
+        <JobCard
+          key={job.id}
+          job={job}
+          onFindPeople={() =>
+            onNavigate?.("Contacts", { search: getPeopleSearchTerm(job) })
+          }
+        />
       ))}
     </ScrollView>
   );

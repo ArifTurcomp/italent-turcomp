@@ -1,25 +1,79 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import CommunityPostCard from "../components/CommunityPostCard";
 import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
 import {
+  bookmarkCommunityPost,
+  createCommunityComment,
   createCommunityPost,
+  fetchCommunityComments,
   fetchCommunityPosts,
-  likeCommunityPost
+  reactCommunityPost,
+  voteCommunityPoll
 } from "../store/store";
-import { colors } from "../utils/helpers";
+import { colors, splitCsv } from "../utils/helpers";
+
+const categories = [
+  "All",
+  "Mentorship",
+  "Coaching",
+  "Expertise",
+  "Hobby",
+  "Science",
+  "General"
+];
+
+const postTypes = [
+  { key: "text", label: "Post" },
+  { key: "question", label: "Question" },
+  { key: "poll", label: "Poll" }
+];
+
+const sortOptions = [
+  { key: "featured", label: "Featured" },
+  { key: "recent", label: "Recent" },
+  { key: "active", label: "Active" }
+];
+
+const defaultValues = {
+  title: "",
+  content: "",
+  category: "Mentorship",
+  content_type: "text",
+  hashtags: "",
+  poll_options: ""
+};
+
+const metricValue = (post) => (post.likes || 0) + (post.comments_count || 0) * 2;
+
+const StatCard = ({ label, value, tone }) => (
+  <View style={[styles.statCard, tone === "warm" && styles.warmStatCard]}>
+    <Text style={[styles.statValue, tone === "warm" && styles.warmStatValue]}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
 
 const CommunityScreen = () => {
   const dispatch = useDispatch();
-  const { posts, loading, saving, error } = useSelector((state) => state.community);
+  const {
+    posts,
+    loading,
+    saving,
+    error,
+    commentsByPost,
+    commentLoadingByPost,
+    bookmarkedPostIds,
+    pollResultsByPost
+  } = useSelector((state) => state.community);
   const user = useSelector((state) => state.auth.user);
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [values, setValues] = useState({ content: "", category: "Mentorship" });
-
-  const categories = ["All", "Mentorship", "Coaching", "Expertise", "Hobby", "Science", "General"];
+  const [sortMode, setSortMode] = useState("featured");
+  const [query, setQuery] = useState("");
+  const [values, setValues] = useState(defaultValues);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     dispatch(
@@ -31,42 +85,135 @@ const CommunityScreen = () => {
     );
   }, [dispatch, selectedCategory]);
 
+  const authorName = user?.first_name
+    ? `${user.first_name} ${user.last_name || ""}`.trim()
+    : "Turcomp Team";
+
+  const visiblePosts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = normalizedQuery
+      ? posts.filter((post) => {
+          const searchable = [
+            post.title,
+            post.content,
+            post.category,
+            post.author_name,
+            ...(Array.isArray(post.hashtags) ? post.hashtags : [])
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return searchable.includes(normalizedQuery);
+        })
+      : posts;
+
+    return [...filtered].sort((a, b) => {
+      if (sortMode === "recent") {
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      }
+      if (sortMode === "active") {
+        return metricValue(b) - metricValue(a);
+      }
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return metricValue(b) - metricValue(a);
+    });
+  }, [posts, query, sortMode]);
+
+  const stats = useMemo(
+    () => ({
+      posts: posts.length,
+      replies: posts.reduce((total, post) => total + (post.comments_count || 0), 0),
+      polls: posts.filter((post) => post.content_type === "poll").length,
+      bookmarks: posts.filter((post) => post.is_bookmarked || bookmarkedPostIds?.[post.id]).length
+    }),
+    [bookmarkedPostIds, posts]
+  );
+
+  const updateValue = (field, value) => {
+    setFormError("");
+    setValues((current) => ({ ...current, [field]: value }));
+  };
+
   const submitPost = async () => {
-    if (!values.content.trim()) return;
+    const content = values.content.trim();
+    const pollOptions = splitCsv(values.poll_options);
+    if (!content) {
+      setFormError("Write something meaningful before posting.");
+      return;
+    }
+    if (values.content_type === "poll" && pollOptions.length < 2) {
+      setFormError("Polls need at least two options.");
+      return;
+    }
+
     try {
       await dispatch(
         createCommunityPost({
-          content: values.content.trim(),
-          category: values.category.trim() || "General"
+          title: values.title.trim(),
+          content,
+          category: values.category.trim() || "General",
+          content_type: values.content_type,
+          hashtags: splitCsv(values.hashtags).map((tag) => tag.replace(/^#/, "")),
+          poll_options: values.content_type === "poll" ? pollOptions : []
         })
       ).unwrap();
-      setValues({ content: "", category: "Mentorship" });
+      setValues(defaultValues);
       setShowForm(false);
     } catch (_) {
       // The Redux error state renders below the form.
     }
   };
 
-  const authorName = user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : "Turcomp Team";
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>Community</Text>
+      <View style={styles.hero}>
+        <View style={styles.heroCopy}>
+          <Text style={styles.eyebrow}>Community Apps</Text>
+          <Text style={styles.title}>Build momentum together</Text>
           <Text style={styles.subtitle}>
-            Share mentorship, coaching, expertise, hobbies, science, and other useful topics.
+            A focused place for questions, mentoring, polls, expertise, and shared wins.
           </Text>
         </View>
         <Pressable style={styles.addButton} onPress={() => setShowForm((value) => !value)}>
-          <Text style={styles.addButtonText}>{showForm ? "Close" : "Post"}</Text>
+          <Text style={styles.addButtonText}>{showForm ? "Close" : "Create"}</Text>
         </Pressable>
       </View>
 
-      <View style={styles.alert}>
-        <Text style={styles.alertText}>
-          Public community feed: connect through topics first, then continue the conversation with people who can help.
-        </Text>
+      <View style={styles.statsGrid}>
+        <StatCard label="Posts" value={stats.posts} />
+        <StatCard label="Replies" value={stats.replies} />
+        <StatCard label="Polls" value={stats.polls} tone="warm" />
+        <StatCard label="Bookmarks" value={stats.bookmarks} tone="warm" />
+      </View>
+
+      <View style={styles.controls}>
+        <FormInput
+          label=""
+          value={query}
+          placeholder="Search topics, people, tags"
+          containerStyle={styles.searchField}
+          onChangeText={setQuery}
+        />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.segmentRow}
+        >
+          {sortOptions.map((option) => {
+            const active = sortMode === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                style={[styles.segment, active && styles.activeSegment]}
+                onPress={() => setSortMode(option.key)}
+              >
+                <Text style={[styles.segmentText, active && styles.activeSegmentText]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -90,18 +237,77 @@ const CommunityScreen = () => {
 
       {showForm ? (
         <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>Start a conversation</Text>
+            <View style={styles.typeRow}>
+              {postTypes.map((type) => {
+                const active = values.content_type === type.key;
+                return (
+                  <Pressable
+                    key={type.key}
+                    style={[styles.typeButton, active && styles.activeTypeButton]}
+                    onPress={() => updateValue("content_type", type.key)}
+                  >
+                    <Text style={[styles.typeButtonText, active && styles.activeTypeButtonText]}>
+                      {type.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <FormInput
-            label="Message"
+            label="Title"
+            value={values.title}
+            placeholder="Short headline"
+            onChangeText={(value) => updateValue("title", value)}
+          />
+          <FormInput
+            label={values.content_type === "question" ? "Question" : "Message"}
             value={values.content}
             multiline
-            onChangeText={(value) => setValues((current) => ({ ...current, content: value }))}
+            placeholder="Share context, progress, or what you need"
+            onChangeText={(value) => updateValue("content", value)}
           />
+
+          <View style={styles.categoryPicker}>
+            {categories
+              .filter((category) => category !== "All")
+              .map((category) => {
+                const active = values.category === category;
+                return (
+                  <Pressable
+                    key={category}
+                    style={[styles.categoryButton, active && styles.activeCategoryButton]}
+                    onPress={() => updateValue("category", category)}
+                  >
+                    <Text
+                      style={[styles.categoryButtonText, active && styles.activeCategoryButtonText]}
+                    >
+                      {category}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+          </View>
+
+          {values.content_type === "poll" ? (
+            <FormInput
+              label="Poll Options"
+              value={values.poll_options}
+              helperText="Separate options with commas."
+              onChangeText={(value) => updateValue("poll_options", value)}
+            />
+          ) : null}
+
           <FormInput
-            label="Category"
-            value={values.category}
-            helperText="Mentorship, Coaching, Expertise, Hobby, Science, or General."
-            onChangeText={(value) => setValues((current) => ({ ...current, category: value }))}
+            label="Tags"
+            value={values.hashtags}
+            helperText="Separate tags with commas."
+            onChangeText={(value) => updateValue("hashtags", value)}
           />
+          {formError ? <Text style={styles.error}>{formError}</Text> : null}
           <Pressable disabled={saving} style={styles.primaryButton} onPress={submitPost}>
             <Text style={styles.primaryText}>{saving ? "Posting..." : "Post to Community"}</Text>
           </Pressable>
@@ -110,13 +316,37 @@ const CommunityScreen = () => {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading && posts.length === 0 ? <LoadingSpinner label="Loading community" /> : null}
-      {posts.map((post) => (
+
+      {visiblePosts.length === 0 && !loading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No conversations found</Text>
+          <Text style={styles.emptyText}>Try a different category or start a new one.</Text>
+        </View>
+      ) : null}
+
+      {visiblePosts.map((post) => (
         <CommunityPostCard
           key={post.id}
           post={post}
-          authorName={post.author_name || (post.author_id === user?.id ? authorName : "Community Member")}
+          authorName={
+            post.author_name || (post.author_id === user?.id ? authorName : "Community Member")
+          }
           authorEmail={post.author_email}
-          onLike={() => dispatch(likeCommunityPost(post.id))}
+          comments={commentsByPost?.[post.id]}
+          commentsLoading={Boolean(commentLoadingByPost?.[post.id])}
+          bookmarked={Boolean(post.is_bookmarked || bookmarkedPostIds?.[post.id])}
+          pollResults={pollResultsByPost?.[post.id] || {}}
+          onReact={(reactionType) =>
+            dispatch(reactCommunityPost({ id: post.id, reaction_type: reactionType }))
+          }
+          onBookmark={() => dispatch(bookmarkCommunityPost(post.id))}
+          onLoadComments={() => dispatch(fetchCommunityComments(post.id))}
+          onAddComment={(content) =>
+            dispatch(createCommunityComment({ id: post.id, content })).unwrap()
+          }
+          onPollVote={(optionIndex) =>
+            dispatch(voteCommunityPoll({ id: post.id, option_index: optionIndex }))
+          }
         />
       ))}
     </ScrollView>
@@ -132,48 +362,117 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 28
   },
-  header: {
-    flexDirection: "row",
+  hero: {
     alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 16
+    backgroundColor: colors.primaryDark,
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between",
+    marginBottom: 14,
+    overflow: "hidden",
+    padding: 18
   },
-  headerCopy: {
-    flex: 1
+  heroCopy: {
+    flex: 1,
+    minWidth: 0
+  },
+  eyebrow: {
+    color: "#BFE7DA",
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 6,
+    textTransform: "uppercase"
   },
   title: {
-    color: colors.text,
+    color: colors.surface,
     fontSize: 26,
-    fontWeight: "900"
+    fontWeight: "900",
+    lineHeight: 31
   },
   subtitle: {
-    color: colors.muted,
+    color: "#DDEBFA",
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 4
+    marginTop: 6
   },
   addButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 11
   },
   addButtonText: {
-    color: colors.surface,
+    color: colors.primaryDark,
     fontWeight: "900"
   },
-  alert: {
-    backgroundColor: "#E1F5EE",
-    borderLeftWidth: 4,
-    borderLeftColor: colors.success,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 14
   },
-  alertText: {
-    color: "#085041",
-    fontSize: 13,
-    fontWeight: "700"
+  statCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
+    minHeight: 78,
+    padding: 14
+  },
+  warmStatCard: {
+    backgroundColor: "#FFF8EB",
+    borderColor: "#F5D08A"
+  },
+  statValue: {
+    color: colors.primary,
+    fontSize: 24,
+    fontWeight: "900"
+  },
+  warmStatValue: {
+    color: "#9A5C00"
+  },
+  statLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 4
+  },
+  controls: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 12
+  },
+  searchField: {
+    marginBottom: 10
+  },
+  segmentRow: {
+    gap: 8
+  },
+  segment: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  activeSegment: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  segmentText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  activeSegmentText: {
+    color: colors.primary
   },
   filterRow: {
     gap: 8,
@@ -188,8 +487,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9
   },
   activeFilterChip: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary
+    backgroundColor: "#EAF7F2",
+    borderColor: colors.success
   },
   filterText: {
     color: colors.muted,
@@ -197,7 +496,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   activeFilterText: {
-    color: colors.primary
+    color: colors.success
   },
   formCard: {
     backgroundColor: colors.surface,
@@ -205,7 +504,71 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
-    marginBottom: 16
+    marginBottom: 16,
+    shadowColor: "#172033",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2
+  },
+  formHeader: {
+    gap: 10,
+    marginBottom: 14
+  },
+  formTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  typeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  typeButton: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  activeTypeButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  typeButtonText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  activeTypeButtonText: {
+    color: colors.surface
+  },
+  categoryPicker: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14
+  },
+  categoryButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  activeCategoryButton: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent
+  },
+  categoryButtonText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  activeCategoryButtonText: {
+    color: colors.accentDark
   },
   primaryButton: {
     minHeight: 46,
@@ -221,6 +584,26 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     marginBottom: 10
+  },
+  emptyState: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 22
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  emptyText: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 5,
+    textAlign: "center"
   }
 });
 

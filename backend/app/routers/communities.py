@@ -157,4 +157,4 @@ def create_community_announcement(community_id: int, payload: CommunityPayload, 
     db.add(post)
     db.commit()
     db.refresh(post)
-    return post_to_dict(db, post)
+    return post_to_dict(db, post, current_user.id)
