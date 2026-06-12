@@ -1,6 +1,20 @@
 import os
 
 
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "mysql+pymysql://italent:italent_password@localhost:3306/italent_db",
@@ -11,6 +25,8 @@ elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 DATABASE_DIALECT = DATABASE_URL.split(":", 1)[0].split("+", 1)[0]
+DATABASE_CONNECT_RETRIES = max(1, _int_env("DATABASE_CONNECT_RETRIES", 30))
+DATABASE_CONNECT_RETRY_DELAY_SECONDS = max(0.1, _float_env("DATABASE_CONNECT_RETRY_DELAY_SECONDS", 2.0))
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv(

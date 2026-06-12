@@ -107,4 +107,6 @@ DEFAULT_ADMIN_PASSWORD=use-a-strong-password-here
 
 Optional SMTP variables can stay empty for the prototype; password reset tokens will be logged by the backend instead of emailed.
 
+If Render logs `psycopg.OperationalError [Errno -2] Name or service not known`, the backend cannot resolve the hostname inside `DATABASE_URL`. Re-copy the database provider's full service URI into the Render `DATABASE_URL` secret, including the real host, port, database name, and any required SSL query string such as `?sslmode=require`. Do not use placeholder values like `HOST`, `localhost`, Docker service names such as `mysql`, or a private/internal hostname that Render cannot reach.
+
 Render Free services sleep after inactivity, so the first request after a quiet period can be slow.
