@@ -1,4 +1,5 @@
 import os
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 def _int_env(name: str, default: int) -> int:
@@ -19,12 +20,28 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "mysql+pymysql://italent:italent_password@localhost:3306/italent_db",
 )
+DATABASE_CONNECT_ARGS = {}
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("mysql://"):
     DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
+
+if DATABASE_URL.startswith("mysql+pymysql://"):
+    parts = urlsplit(DATABASE_URL)
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    cleaned_query_pairs = []
+    ssl_mode = ""
+    for key, value in query_pairs:
+        if key.lower() in {"ssl-mode", "ssl_mode"}:
+            ssl_mode = value.strip().lower()
+        else:
+            cleaned_query_pairs.append((key, value))
+    if ssl_mode:
+        DATABASE_URL = urlunsplit(parts._replace(query=urlencode(cleaned_query_pairs, doseq=True)))
+        if ssl_mode not in {"disabled", "false", "0", "off"}:
+            DATABASE_CONNECT_ARGS["ssl"] = {"check_hostname": False, "verify_mode": "none"}
 
 DATABASE_DIALECT = DATABASE_URL.split(":", 1)[0].split("+", 1)[0]
 DATABASE_CONNECT_RETRIES = max(1, _int_env("DATABASE_CONNECT_RETRIES", 30))
