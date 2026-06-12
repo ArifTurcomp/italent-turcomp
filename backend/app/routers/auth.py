@@ -1,7 +1,14 @@
 ﻿from fastapi import APIRouter
+from sqlalchemy.exc import IntegrityError
+
 from app.routes_shared import *  # noqa: F401,F403
 
 router = APIRouter()
+
+
+def _validate_department_id(db: Session, department_id: int | None) -> None:
+    if department_id is not None and not db.get(Department, department_id):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose a valid group.")
 
 @router.post("/api/auth/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -48,6 +55,7 @@ def confirm_password_reset(payload: PasswordResetConfirmRequest, db: Session = D
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[str, Any]:
     if db.query(User).filter(or_(User.email == payload.email.lower(), User.username == payload.username)).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "Email or username is already registered")
+    _validate_department_id(db, payload.department_id)
     now = utc_now()
     user = User(
         username=payload.username.strip(),
@@ -66,7 +74,11 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[st
         updated_at=now,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email or username is already registered") from exc
     db.refresh(user)
     return issue_tokens(db, user)
 
@@ -91,6 +103,7 @@ def social_login(payload: SocialLoginPayload, db: Session = Depends(get_db)) -> 
     now = utc_now()
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user:
+        _validate_department_id(db, payload.department_id)
         base_username = payload.username or payload.email.split("@", 1)[0]
         username = base_username
         suffix = 1
@@ -114,7 +127,11 @@ def social_login(payload: SocialLoginPayload, db: Session = Depends(get_db)) -> 
             updated_at=now,
         )
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, "Email or username is already registered") from exc
         db.refresh(user)
     return issue_tokens(db, user)
 

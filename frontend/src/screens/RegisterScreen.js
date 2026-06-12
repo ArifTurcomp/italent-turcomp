@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -6,18 +6,47 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text
+  Text,
+  View
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
 import TurcompLogo from "../components/TurcompLogo";
-import { registerUser } from "../store/store";
+import { fetchDepartments, registerUser } from "../store/store";
 import { colors, isEmail, splitCsv } from "../utils/helpers";
+
+const OptionGroup = ({ label, value, options, error, helperText, onChange }) => (
+  <View style={styles.optionGroup}>
+    <Text style={styles.optionLabel}>{label}</Text>
+    <View style={styles.optionRow}>
+      {options.map((option) => {
+        const active = String(value) === String(option.value);
+        return (
+          <Pressable
+            key={String(option.value)}
+            accessibilityRole="button"
+            style={[styles.optionButton, active && styles.activeOptionButton]}
+            onPress={() => onChange(String(option.value))}
+          >
+            <Text style={[styles.optionText, active && styles.activeOptionText]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+    {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+    {!error && helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
+  </View>
+);
 
 const RegisterScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.auth);
+  const { items: departments, loading: departmentsLoading, error: departmentsError } = useSelector(
+    (state) => state.departments
+  );
   const [values, setValues] = useState({
     username: "",
     email: "",
@@ -33,6 +62,24 @@ const RegisterScreen = ({ navigation }) => {
   });
   const [errors, setErrors] = useState({});
 
+  useEffect(() => {
+    dispatch(fetchDepartments({ page: 1, per_page: 100 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!values.department_id && departments.length === 1) {
+      setValues((current) => ({ ...current, department_id: String(departments[0].id) }));
+    }
+  }, [departments, values.department_id]);
+
+  const groupOptions = departments.map((department) => ({
+    label: department.name,
+    value: String(department.id)
+  }));
+  const groupHelperText = departmentsLoading
+    ? "Loading groups..."
+    : departmentsError || (!groupOptions.length ? "No groups are available yet." : "");
+
   const updateValue = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
@@ -46,11 +93,7 @@ const RegisterScreen = ({ navigation }) => {
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
     if (!values.phone.trim()) nextErrors.phone = "Phone number is required.";
     if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
-    if (!values.department_id.trim()) {
-      nextErrors.department_id = "Group ID is required.";
-    } else if (Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Group ID must be a number.";
-    }
+    if (!values.department_id.trim()) nextErrors.department_id = "Choose a group.";
     if (values.password.length < 8) nextErrors.password = "Use at least 8 characters.";
     if (values.password !== values.confirmPassword) {
       nextErrors.confirmPassword = "Passwords must match.";
@@ -138,13 +181,13 @@ const RegisterScreen = ({ navigation }) => {
           error={errors.position}
           onChangeText={(value) => updateValue("position", value)}
         />
-        <FormInput
-          label="Group ID"
+        <OptionGroup
+          label="Group"
           value={values.department_id}
           error={errors.department_id}
-          keyboardType="numeric"
-          helperText="Use the numeric group ID."
-          onChangeText={(value) => updateValue("department_id", value)}
+          helperText={groupHelperText}
+          options={groupOptions}
+          onChange={(value) => updateValue("department_id", value)}
         />
         <FormInput
           label="Expertise Tags"
@@ -216,6 +259,50 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     marginBottom: 12
+  },
+  optionGroup: {
+    marginBottom: 14
+  },
+  optionLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6
+  },
+  optionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  optionButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  activeOptionButton: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  optionText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  activeOptionText: {
+    color: colors.primary
+  },
+  fieldError: {
+    color: colors.danger,
+    fontSize: 12,
+    marginTop: 5
+  },
+  helper: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 5
   },
   primaryButton: {
     minHeight: 48,

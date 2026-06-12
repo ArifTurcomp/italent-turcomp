@@ -5,7 +5,7 @@ router = APIRouter()
 
 
 @router.get("/api/departments")
-def list_departments(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
+def list_departments(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)) -> Dict[str, Any]:
     query = db.query(Department).order_by(Department.name)
     return paginate(query, page, per_page, lambda department: department_to_dict(department, db))
 
