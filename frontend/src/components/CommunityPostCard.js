@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, formatDate, getInitials } from "../utils/helpers";
 
 const reactionOptions = [
@@ -15,6 +15,13 @@ const contentTypeLabel = {
   question: "Question",
   poll: "Poll"
 };
+
+const photoAttachmentsFromText = (value) =>
+  String(value || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean)
+    .map((url) => ({ type: "image", url }));
 
 const CommunityPostCard = ({
   post,
@@ -32,6 +39,7 @@ const CommunityPostCard = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [commentPhotoUrls, setCommentPhotoUrls] = useState("");
   const [savingComment, setSavingComment] = useState(false);
   const [selectedReaction, setSelectedReaction] = useState("like");
   const [selectedPollIndex, setSelectedPollIndex] = useState(null);
@@ -45,6 +53,8 @@ const CommunityPostCard = ({
   const tags = Array.isArray(post.hashtags) ? post.hashtags : [];
   const pollOptions = Array.isArray(post.poll_options) ? post.poll_options : [];
   const isPoll = post.content_type === "poll" && pollOptions.length > 0;
+  const pendingPhotoAttachments = photoAttachmentsFromText(commentPhotoUrls);
+  const canSubmitComment = commentText.trim() || pendingPhotoAttachments.length > 0;
 
   const totalVotes = useMemo(
     () =>
@@ -57,11 +67,13 @@ const CommunityPostCard = ({
 
   const addComment = async () => {
     const content = commentText.trim();
-    if (!content || !onAddComment) return;
+    const attachments = pendingPhotoAttachments;
+    if ((!content && attachments.length === 0) || !onAddComment) return;
     setSavingComment(true);
     try {
-      await onAddComment(content);
+      await onAddComment(content || "Photo reply", attachments);
       setCommentText("");
+      setCommentPhotoUrls("");
     } finally {
       setSavingComment(false);
     }
@@ -183,19 +195,29 @@ const CommunityPostCard = ({
           </View>
 
           <View style={styles.commentComposer}>
-            <TextInput
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholder="Add a useful reply"
-              placeholderTextColor="#8795A8"
-              multiline
-              style={styles.commentInput}
-            />
+            <View style={styles.commentFields}>
+              <TextInput
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder="Add a useful reply"
+                placeholderTextColor="#8795A8"
+                multiline
+                style={styles.commentInput}
+              />
+              <TextInput
+                value={commentPhotoUrls}
+                onChangeText={setCommentPhotoUrls}
+                placeholder="Photo URL, or multiple URLs separated by commas"
+                placeholderTextColor="#8795A8"
+                autoCapitalize="none"
+                style={styles.photoInput}
+              />
+            </View>
             <Pressable
-              disabled={savingComment || !commentText.trim()}
+              disabled={savingComment || !canSubmitComment}
               style={[
                 styles.commentButton,
-                (!commentText.trim() || savingComment) && styles.disabledButton
+                (!canSubmitComment || savingComment) && styles.disabledButton
               ]}
               onPress={addComment}
             >
@@ -214,6 +236,16 @@ const CommunityPostCard = ({
               <View style={styles.commentBubble}>
                 <Text style={styles.commentAuthor}>{comment.author_name || "Community Member"}</Text>
                 <Text style={styles.commentContent}>{comment.content}</Text>
+                {(comment.attachments || [])
+                  .filter((attachment) => attachment.type === "image" && attachment.url)
+                  .map((attachment, index) => (
+                    <Image
+                      key={`${attachment.url}-${index}`}
+                      source={{ uri: attachment.url }}
+                      style={styles.commentPhoto}
+                      resizeMode="cover"
+                    />
+                  ))}
               </View>
             </View>
           ))}
@@ -511,6 +543,10 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12
   },
+  commentFields: {
+    flex: 1,
+    gap: 8
+  },
   commentInput: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -523,6 +559,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     textAlignVertical: "top"
+  },
+  photoInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    color: colors.text,
+    fontSize: 13,
+    minHeight: 42,
+    paddingHorizontal: 12
   },
   commentButton: {
     alignItems: "center",
@@ -580,6 +626,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 3
+  },
+  commentPhoto: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    height: 150,
+    marginTop: 8,
+    width: "100%"
   }
 });
 

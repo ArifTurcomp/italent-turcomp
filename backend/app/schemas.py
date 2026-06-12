@@ -24,6 +24,7 @@ class RegisterRequest(LoginRequest):
     position: str = Field(min_length=1)
     skills: List[str] = Field(default_factory=list)
     notes: Optional[str] = ""
+    marital_status: str = "single"
     role: str = "user"
     department_id: int
 
@@ -35,20 +36,21 @@ class ProfileUpdateRequest(BaseModel):
     position: str = Field(min_length=1)
     skills: List[str] = Field(default_factory=list)
     notes: Optional[str] = ""
+    marital_status: str = "single"
     department_id: int
-
-
-class ExtendedProfilePayload(ProfileUpdateRequest):
     profile_picture: Optional[str] = ""
     cover_photo: Optional[str] = ""
     bio: Optional[str] = ""
-    work_experience: List[Dict[str, Any]] = Field(default_factory=list)
-    education: List[Dict[str, Any]] = Field(default_factory=list)
-    certifications: List[Dict[str, Any]] = Field(default_factory=list)
     portfolio_url: Optional[str] = ""
     resume_url: Optional[str] = ""
     contact_info: Dict[str, Any] = Field(default_factory=dict)
     privacy_settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ExtendedProfilePayload(ProfileUpdateRequest):
+    work_experience: List[Dict[str, Any]] = Field(default_factory=list)
+    education: List[Dict[str, Any]] = Field(default_factory=list)
+    certifications: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class PrivacyPayload(BaseModel):
@@ -68,6 +70,8 @@ class ContactPayload(BaseModel):
     position: str
     skills: List[str] = Field(default_factory=list)
     notes: Optional[str] = ""
+    marital_status: str = "single"
+    hiring_personality_test: Optional[str] = ""
     department_id: Optional[int] = None
     status: str = "active"
 
@@ -99,6 +103,7 @@ class CommunityPayload(BaseModel):
 
 class CommentPayload(BaseModel):
     content: str = Field(min_length=1)
+    attachments: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class MessagePayload(BaseModel):

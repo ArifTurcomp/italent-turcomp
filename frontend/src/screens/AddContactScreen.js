@@ -20,6 +20,8 @@ const initialValues = {
   position: "",
   skills: "",
   notes: "",
+  marital_status: "single",
+  hiring_personality_test: "",
   department_id: "",
   status: "active"
 };
@@ -40,6 +42,9 @@ const AddContactScreen = ({ navigation }) => {
     if (!values.name.trim()) nextErrors.name = "Name is required.";
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
     if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
+    if (!["single", "married"].includes(values.marital_status.trim().toLowerCase())) {
+      nextErrors.marital_status = "Use single or married.";
+    }
     if (values.department_id && Number.isNaN(Number(values.department_id))) {
       nextErrors.department_id = "Group ID must be a number.";
     }
@@ -56,6 +61,8 @@ const AddContactScreen = ({ navigation }) => {
       position: values.position.trim(),
       skills: splitCsv(values.skills),
       notes: values.notes.trim(),
+      marital_status: values.marital_status.trim().toLowerCase(),
+      hiring_personality_test: values.hiring_personality_test.trim(),
       department_id: values.department_id ? Number(values.department_id) : null,
       status: values.status
     };
@@ -99,6 +106,13 @@ const AddContactScreen = ({ navigation }) => {
           onChangeText={(value) => updateValue("phone", value)}
         />
         <FormInput
+          label="Marital Status"
+          value={values.marital_status}
+          error={errors.marital_status}
+          helperText="Use single or married."
+          onChangeText={(value) => updateValue("marital_status", value)}
+        />
+        <FormInput
           label="Expertise / Role"
           value={values.position}
           error={errors.position}
@@ -123,6 +137,13 @@ const AddContactScreen = ({ navigation }) => {
           value={values.notes}
           multiline
           onChangeText={(value) => updateValue("notes", value)}
+        />
+        <FormInput
+          label="Hiring Personality Test"
+          value={values.hiring_personality_test}
+          multiline
+          helperText="Add personality test result, work style, strengths, or hiring notes."
+          onChangeText={(value) => updateValue("hiring_personality_test", value)}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -10,6 +10,7 @@ const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
   const status = contact.status || "active";
   const department = contact.department?.name || contact.department || contact.dept || "Unassigned";
   const skills = joinList(contact.skills);
+  const maritalStatus = contact.marital_status || "single";
 
   return (
     <Pressable
@@ -40,7 +41,15 @@ const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
       <Text style={styles.meta} numberOfLines={1}>
         {department} | {contact.email || "No email"}
       </Text>
+      <Text style={styles.meta} numberOfLines={1}>
+        Marital status: {maritalStatus}
+      </Text>
       {skills ? <Text style={styles.skills} numberOfLines={2}>Expertise: {skills}</Text> : null}
+      {contact.hiring_personality_test ? (
+        <Text style={styles.personality} numberOfLines={2}>
+          Hiring personality: {contact.hiring_personality_test}
+        </Text>
+      ) : null}
 
       <View style={styles.actions}>
         {onEdit ? (
@@ -65,6 +74,8 @@ ContactCard.propTypes = {
     email: PropTypes.string,
     phone: PropTypes.string,
     position: PropTypes.string,
+    marital_status: PropTypes.string,
+    hiring_personality_test: PropTypes.string,
     department: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     dept: PropTypes.string,
     skills: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
@@ -152,6 +163,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 12,
     fontWeight: "600",
+    marginTop: 6
+  },
+  personality: {
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 17,
     marginTop: 6
   },
   actions: {

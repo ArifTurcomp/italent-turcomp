@@ -35,6 +35,7 @@ class CommunityComment(Base):
     post_id = Column(Integer, ForeignKey("community_posts.id"), nullable=False, index=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
+    attachments = Column(JSON, nullable=True, default=list)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 

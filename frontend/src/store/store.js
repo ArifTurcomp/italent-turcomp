@@ -244,6 +244,18 @@ export const bookmarkCommunityPost = createAsyncThunk(
   }
 );
 
+export const fetchBookmarkedCommunityPosts = createAsyncThunk(
+  "community/bookmarks/fetch",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await api.community.bookmarks();
+      return normalizeList(data);
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
 export const fetchCommunityComments = createAsyncThunk(
   "community/comments/fetch",
   async (id, { rejectWithValue }) => {
@@ -258,9 +270,9 @@ export const fetchCommunityComments = createAsyncThunk(
 
 export const createCommunityComment = createAsyncThunk(
   "community/comments/create",
-  async ({ id, content }, { rejectWithValue }) => {
+  async ({ id, content, attachments = [] }, { rejectWithValue }) => {
     try {
-      const comment = await api.community.comment(id, { content });
+      const comment = await api.community.comment(id, { content, attachments });
       return { postId: id, comment };
     } catch (error) {
       return rejectMessage(error, rejectWithValue);
@@ -524,6 +536,7 @@ const communitySlice = createSlice({
   name: "community",
   initialState: {
     posts: [],
+    bookmarkedPosts: [],
     selectedPost: null,
     commentsByPost: {},
     commentLoadingByPost: {},
@@ -585,6 +598,7 @@ const communitySlice = createSlice({
           state.bookmarkedPostIds[postId] = true;
         } else {
           delete state.bookmarkedPostIds[postId];
+          state.bookmarkedPosts = state.bookmarkedPosts.filter((post) => post.id !== postId);
         }
         state.posts = state.posts.map((post) =>
           post.id === postId
@@ -595,8 +609,32 @@ const communitySlice = createSlice({
               }
             : post
         );
+        state.bookmarkedPosts = state.bookmarkedPosts.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                is_bookmarked: Boolean(action.payload.is_bookmarked),
+                bookmark_count: action.payload.bookmark_count ?? post.bookmark_count
+              }
+            : post
+        );
       })
       .addCase(bookmarkCommunityPost.rejected, (state, action) => {
+        state.error = action.payload;
+      })
+      .addCase(fetchBookmarkedCommunityPosts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBookmarkedCommunityPosts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.bookmarkedPosts = action.payload.items;
+        action.payload.items.forEach((post) => {
+          state.bookmarkedPostIds[post.id] = true;
+        });
+      })
+      .addCase(fetchBookmarkedCommunityPosts.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       })
       .addCase(fetchCommunityComments.pending, (state, action) => {
@@ -627,6 +665,7 @@ const communitySlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state) => {
         state.posts = [];
+        state.bookmarkedPosts = [];
         state.selectedPost = null;
         state.commentsByPost = {};
         state.commentLoadingByPost = {};
@@ -636,6 +675,7 @@ const communitySlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state) => {
         state.posts = [];
+        state.bookmarkedPosts = [];
         state.selectedPost = null;
         state.commentsByPost = {};
         state.commentLoadingByPost = {};
@@ -645,6 +685,7 @@ const communitySlice = createSlice({
       })
       .addCase(logoutUser.fulfilled, (state) => {
         state.posts = [];
+        state.bookmarkedPosts = [];
         state.selectedPost = null;
         state.commentsByPost = {};
         state.commentLoadingByPost = {};

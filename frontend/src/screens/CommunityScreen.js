@@ -8,6 +8,7 @@ import {
   bookmarkCommunityPost,
   createCommunityComment,
   createCommunityPost,
+  fetchBookmarkedCommunityPosts,
   fetchCommunityComments,
   fetchCommunityPosts,
   reactCommunityPost,
@@ -59,6 +60,7 @@ const CommunityScreen = () => {
   const dispatch = useDispatch();
   const {
     posts,
+    bookmarkedPosts,
     loading,
     saving,
     error,
@@ -70,29 +72,35 @@ const CommunityScreen = () => {
   const user = useSelector((state) => state.auth.user);
   const [showForm, setShowForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [viewMode, setViewMode] = useState("all");
   const [sortMode, setSortMode] = useState("featured");
   const [query, setQuery] = useState("");
   const [values, setValues] = useState(defaultValues);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    dispatch(
-      fetchCommunityPosts({
-        page: 1,
-        per_page: 50,
-        category: selectedCategory === "All" ? undefined : selectedCategory
-      })
-    );
-  }, [dispatch, selectedCategory]);
+    if (viewMode === "bookmarks") {
+      dispatch(fetchBookmarkedCommunityPosts());
+    } else {
+      dispatch(
+        fetchCommunityPosts({
+          page: 1,
+          per_page: 50,
+          category: selectedCategory === "All" ? undefined : selectedCategory
+        })
+      );
+    }
+  }, [dispatch, selectedCategory, viewMode]);
 
   const authorName = user?.first_name
     ? `${user.first_name} ${user.last_name || ""}`.trim()
     : "Turcomp Team";
 
   const visiblePosts = useMemo(() => {
+    const sourcePosts = viewMode === "bookmarks" ? bookmarkedPosts : posts;
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = normalizedQuery
-      ? posts.filter((post) => {
+      ? sourcePosts.filter((post) => {
           const searchable = [
             post.title,
             post.content,
@@ -105,7 +113,7 @@ const CommunityScreen = () => {
             .toLowerCase();
           return searchable.includes(normalizedQuery);
         })
-      : posts;
+      : sourcePosts;
 
     return [...filtered].sort((a, b) => {
       if (sortMode === "recent") {
@@ -117,16 +125,19 @@ const CommunityScreen = () => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
       return metricValue(b) - metricValue(a);
     });
-  }, [posts, query, sortMode]);
+  }, [bookmarkedPosts, posts, query, sortMode, viewMode]);
 
   const stats = useMemo(
     () => ({
       posts: posts.length,
       replies: posts.reduce((total, post) => total + (post.comments_count || 0), 0),
       polls: posts.filter((post) => post.content_type === "poll").length,
-      bookmarks: posts.filter((post) => post.is_bookmarked || bookmarkedPostIds?.[post.id]).length
+      bookmarks: Math.max(
+        bookmarkedPosts.length,
+        posts.filter((post) => post.is_bookmarked || bookmarkedPostIds?.[post.id]).length
+      )
     }),
-    [bookmarkedPostIds, posts]
+    [bookmarkedPostIds, bookmarkedPosts, posts]
   );
 
   const updateValue = (field, value) => {
@@ -187,6 +198,25 @@ const CommunityScreen = () => {
       </View>
 
       <View style={styles.controls}>
+        <View style={styles.viewToggle}>
+          {[
+            { key: "all", label: "All Posts" },
+            { key: "bookmarks", label: "Bookmarks" }
+          ].map((option) => {
+            const active = viewMode === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                style={[styles.viewButton, active && styles.activeViewButton]}
+                onPress={() => setViewMode(option.key)}
+              >
+                <Text style={[styles.viewButtonText, active && styles.activeViewButtonText]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <FormInput
           label=""
           value={query}
@@ -216,24 +246,26 @@ const CommunityScreen = () => {
         </ScrollView>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
-        {categories.map((category) => {
-          const active = selectedCategory === category;
-          return (
-            <Pressable
-              key={category}
-              style={[styles.filterChip, active && styles.activeFilterChip]}
-              onPress={() => setSelectedCategory(category)}
-            >
-              <Text style={[styles.filterText, active && styles.activeFilterText]}>{category}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {viewMode === "all" ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {categories.map((category) => {
+            const active = selectedCategory === category;
+            return (
+              <Pressable
+                key={category}
+                style={[styles.filterChip, active && styles.activeFilterChip]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text style={[styles.filterText, active && styles.activeFilterText]}>{category}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       {showForm ? (
         <View style={styles.formCard}>
@@ -319,8 +351,14 @@ const CommunityScreen = () => {
 
       {visiblePosts.length === 0 && !loading ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No conversations found</Text>
-          <Text style={styles.emptyText}>Try a different category or start a new one.</Text>
+          <Text style={styles.emptyTitle}>
+            {viewMode === "bookmarks" ? "No bookmarks yet" : "No conversations found"}
+          </Text>
+          <Text style={styles.emptyText}>
+            {viewMode === "bookmarks"
+              ? "Bookmark community posts and they will appear here."
+              : "Try a different category or start a new one."}
+          </Text>
         </View>
       ) : null}
 
@@ -341,8 +379,8 @@ const CommunityScreen = () => {
           }
           onBookmark={() => dispatch(bookmarkCommunityPost(post.id))}
           onLoadComments={() => dispatch(fetchCommunityComments(post.id))}
-          onAddComment={(content) =>
-            dispatch(createCommunityComment({ id: post.id, content })).unwrap()
+          onAddComment={(content, attachments = []) =>
+            dispatch(createCommunityComment({ id: post.id, content, attachments })).unwrap()
           }
           onPollVote={(optionIndex) =>
             dispatch(voteCommunityPoll({ id: post.id, option_index: optionIndex }))
@@ -447,6 +485,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 14,
     padding: 12
+  },
+  viewToggle: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10
+  },
+  viewButton: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  activeViewButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  viewButtonText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  activeViewButtonText: {
+    color: colors.surface
   },
   searchField: {
     marginBottom: 10

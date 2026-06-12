@@ -82,6 +82,7 @@ const api = {
     like: (id) => unwrap(apiClient.post(`/community/${id}/like`)),
     react: (id, payload) => unwrap(apiClient.post(`/community/${id}/react`, payload)),
     bookmark: (id) => unwrap(apiClient.post(`/community/${id}/bookmark`)),
+    bookmarks: () => unwrap(apiClient.get("/bookmarks")),
     comments: (id, params = {}) =>
       unwrap(apiClient.get(`/community/${id}/comments`, { params })),
     comment: (id, payload) => unwrap(apiClient.post(`/community/${id}/comments`, payload)),

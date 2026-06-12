@@ -25,7 +25,15 @@ def update_me(
     current_user.position = payload.position.strip()
     current_user.skills = payload.skills
     current_user.notes = (payload.notes or "").strip()
+    current_user.marital_status = payload.marital_status.strip().lower()
     current_user.department_id = payload.department_id
+    current_user.profile_picture = (payload.profile_picture or "").strip()
+    current_user.cover_photo = (payload.cover_photo or "").strip()
+    current_user.bio = (payload.bio or "").strip()
+    current_user.portfolio_url = (payload.portfolio_url or "").strip()
+    current_user.resume_url = (payload.resume_url or "").strip()
+    current_user.contact_info = payload.contact_info
+    current_user.privacy_settings = payload.privacy_settings
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)

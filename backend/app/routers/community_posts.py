@@ -130,6 +130,7 @@ def create_comment(
         post_id=post_id,
         author_id=current_user.id,
         content=payload.content.strip(),
+        attachments=payload.attachments,
         created_at=now,
         updated_at=now,
     )
@@ -160,6 +161,7 @@ def update_comment(
     if not comment or comment.author_id != current_user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Comment not found")
     comment.content = payload.content.strip()
+    comment.attachments = payload.attachments
     comment.updated_at = utc_now()
     db.commit()
     db.refresh(comment)
@@ -181,6 +183,8 @@ def delete_comment(
     if post:
         post.comments_count = db.query(CommunityComment).filter(CommunityComment.post_id == post.id).count()
         post.updated_at = utc_now()
+        db.commit()
+    return {"message": "Comment deleted"}
 
 @router.post("/api/community/{post_id}/react")
 def react_to_post(

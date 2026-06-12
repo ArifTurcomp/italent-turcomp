@@ -3,22 +3,72 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useDispatch, useSelector } from "react-redux";
 import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { updateUserProfile } from "../store/store";
+import { fetchDepartments, updateUserProfile } from "../store/store";
 import { colors, getInitials, joinList, splitCsv } from "../utils/helpers";
+
+const maritalStatusOptions = [
+  { label: "Single", value: "single" },
+  { label: "Married", value: "married" }
+];
+
+const visibilityOptions = [
+  { label: "Public", value: "public" },
+  { label: "Private", value: "private" }
+];
+
+const OptionGroup = ({ label, value, options, error, helperText, onChange }) => (
+  <View style={styles.optionGroup}>
+    <Text style={styles.optionLabel}>{label}</Text>
+    <View style={styles.optionRow}>
+      {options.map((option) => {
+        const active = String(value) === String(option.value);
+        return (
+          <Pressable
+            key={String(option.value)}
+            accessibilityRole="button"
+            style={[styles.optionButton, active && styles.activeOptionButton]}
+            onPress={() => onChange(String(option.value))}
+          >
+            <Text style={[styles.optionText, active && styles.activeOptionText]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+    {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+    {!error && helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
+  </View>
+);
 
 const SettingsScreen = () => {
   const dispatch = useDispatch();
   const { user, loading, error } = useSelector((state) => state.auth);
+  const { items: departments, loading: departmentsLoading } = useSelector((state) => state.departments);
   const [values, setValues] = useState({
     first_name: "",
     last_name: "",
     phone: "",
     position: "",
+    marital_status: "single",
     department_id: "",
     skills: "",
-    notes: ""
+    notes: "",
+    bio: "",
+    profile_picture: "",
+    cover_photo: "",
+    portfolio_url: "",
+    resume_url: "",
+    location: "",
+    linkedin_url: "",
+    website_url: "",
+    profile_visibility: "public"
   });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    dispatch(fetchDepartments({ page: 1, per_page: 100 }));
+  }, [dispatch]);
 
   useEffect(() => {
     setValues({
@@ -26,13 +76,37 @@ const SettingsScreen = () => {
       last_name: user?.last_name || "",
       phone: user?.phone || "",
       position: user?.position || "",
+      marital_status: user?.marital_status || "single",
       department_id: user?.department_id ? String(user.department_id) : "",
       skills: joinList(user?.skills),
-      notes: user?.notes || ""
+      notes: user?.notes || "",
+      bio: user?.bio || "",
+      profile_picture: user?.profile_picture || "",
+      cover_photo: user?.cover_photo || "",
+      portfolio_url: user?.portfolio_url || "",
+      resume_url: user?.resume_url || "",
+      location: user?.contact_info?.location || "",
+      linkedin_url: user?.contact_info?.linkedin_url || "",
+      website_url: user?.contact_info?.website_url || "",
+      profile_visibility: user?.privacy_settings?.profile_visibility || "public"
     });
   }, [user]);
 
   const displayName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || user?.username || "Account";
+  const groupOptions = departments.map((department) => ({
+    label: department.name,
+    value: String(department.id)
+  }));
+  const hasSelectedGroup = groupOptions.some(
+    (option) => option.value === String(values.department_id)
+  );
+  const visibleGroupOptions =
+    values.department_id && !hasSelectedGroup
+      ? [
+          { label: `Current group #${values.department_id}`, value: String(values.department_id) },
+          ...groupOptions
+        ]
+      : groupOptions;
 
   const updateValue = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -45,10 +119,16 @@ const SettingsScreen = () => {
     if (!values.last_name.trim()) nextErrors.last_name = "Last name is required.";
     if (!values.phone.trim()) nextErrors.phone = "Phone number is required.";
     if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
+    if (!["single", "married"].includes(values.marital_status.trim().toLowerCase())) {
+      nextErrors.marital_status = "Use single or married.";
+    }
+    if (!["public", "private"].includes(values.profile_visibility.trim().toLowerCase())) {
+      nextErrors.profile_visibility = "Use public or private.";
+    }
     if (!values.department_id.trim()) {
-      nextErrors.department_id = "Group ID is required.";
+      nextErrors.department_id = "Choose a group.";
     } else if (Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Group ID must be a number.";
+      nextErrors.department_id = "Choose a valid group.";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -64,12 +144,28 @@ const SettingsScreen = () => {
           last_name: values.last_name.trim(),
           phone: values.phone.trim(),
           position: values.position.trim(),
+          marital_status: values.marital_status.trim().toLowerCase(),
           department_id: Number(values.department_id),
           skills: splitCsv(values.skills),
-          notes: values.notes.trim()
+          notes: values.notes.trim(),
+          bio: values.bio.trim(),
+          profile_picture: values.profile_picture.trim(),
+          cover_photo: values.cover_photo.trim(),
+          portfolio_url: values.portfolio_url.trim(),
+          resume_url: values.resume_url.trim(),
+          contact_info: {
+            ...(user?.contact_info || {}),
+            location: values.location.trim(),
+            linkedin_url: values.linkedin_url.trim(),
+            website_url: values.website_url.trim()
+          },
+          privacy_settings: {
+            ...(user?.privacy_settings || {}),
+            profile_visibility: values.profile_visibility.trim().toLowerCase()
+          }
         })
       ).unwrap();
-      Alert.alert("Account updated", "Your name has been saved.");
+      Alert.alert("Account updated", "Your settings have been saved.");
     } catch (_) {
       // The Redux error state renders under the form.
     }
@@ -85,6 +181,10 @@ const SettingsScreen = () => {
           <Text style={styles.title}>{displayName}</Text>
           <Text style={styles.meta}>{user?.email}</Text>
           <Text style={styles.meta}>{user?.position || "No expertise set"}</Text>
+          <Text style={styles.meta}>Marital status: {user?.marital_status || "single"}</Text>
+          <Text style={styles.meta}>
+            Visibility: {user?.privacy_settings?.profile_visibility || "public"}
+          </Text>
           <Text style={styles.meta}>@{user?.username}</Text>
         </View>
       </View>
@@ -117,13 +217,20 @@ const SettingsScreen = () => {
           error={errors.position}
           onChangeText={(value) => updateValue("position", value)}
         />
-        <FormInput
-          label="Group ID"
+        <OptionGroup
+          label="Marital Status"
+          value={values.marital_status}
+          error={errors.marital_status}
+          options={maritalStatusOptions}
+          onChange={(value) => updateValue("marital_status", value)}
+        />
+        <OptionGroup
+          label="Group"
           value={values.department_id}
           error={errors.department_id}
-          keyboardType="numeric"
-          helperText="Use the numeric group ID."
-          onChangeText={(value) => updateValue("department_id", value)}
+          helperText={departmentsLoading ? "Loading groups..." : ""}
+          options={visibleGroupOptions}
+          onChange={(value) => updateValue("department_id", value)}
         />
         <FormInput
           label="Expertise Tags"
@@ -136,6 +243,63 @@ const SettingsScreen = () => {
           value={values.notes}
           multiline
           onChangeText={(value) => updateValue("notes", value)}
+        />
+        <FormInput
+          label="Bio"
+          value={values.bio}
+          multiline
+          helperText="Short public introduction for your community profile."
+          onChangeText={(value) => updateValue("bio", value)}
+        />
+        <FormInput
+          label="Location"
+          value={values.location}
+          helperText="City, country, or remote region."
+          onChangeText={(value) => updateValue("location", value)}
+        />
+        <FormInput
+          label="LinkedIn URL"
+          value={values.linkedin_url}
+          autoCapitalize="none"
+          onChangeText={(value) => updateValue("linkedin_url", value)}
+        />
+        <FormInput
+          label="Website URL"
+          value={values.website_url}
+          autoCapitalize="none"
+          onChangeText={(value) => updateValue("website_url", value)}
+        />
+        <FormInput
+          label="Portfolio URL"
+          value={values.portfolio_url}
+          autoCapitalize="none"
+          onChangeText={(value) => updateValue("portfolio_url", value)}
+        />
+        <FormInput
+          label="Resume URL"
+          value={values.resume_url}
+          autoCapitalize="none"
+          helperText="Used when applying to mentorship or coaching opportunities."
+          onChangeText={(value) => updateValue("resume_url", value)}
+        />
+        <FormInput
+          label="Profile Picture URL"
+          value={values.profile_picture}
+          autoCapitalize="none"
+          onChangeText={(value) => updateValue("profile_picture", value)}
+        />
+        <FormInput
+          label="Cover Photo URL"
+          value={values.cover_photo}
+          autoCapitalize="none"
+          onChangeText={(value) => updateValue("cover_photo", value)}
+        />
+        <OptionGroup
+          label="Profile Visibility"
+          value={values.profile_visibility}
+          error={errors.profile_visibility}
+          options={visibilityOptions}
+          onChange={(value) => updateValue("profile_visibility", value)}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -212,6 +376,50 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
     marginBottom: 14
+  },
+  optionGroup: {
+    marginBottom: 14
+  },
+  optionLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6
+  },
+  optionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  optionButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  activeOptionButton: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  optionText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  activeOptionText: {
+    color: colors.primary
+  },
+  fieldError: {
+    color: colors.danger,
+    fontSize: 12,
+    marginTop: 5
+  },
+  helper: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 5
   },
   error: {
     color: colors.danger,

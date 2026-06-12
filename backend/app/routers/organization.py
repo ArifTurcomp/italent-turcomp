@@ -56,7 +56,15 @@ def list_contacts(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le
         query = query.filter(Contact.status == status_filter)
     if search:
         needle = f"%{search.lower()}%"
-        query = query.filter(or_(Contact.name.ilike(needle), Contact.email.ilike(needle), Contact.position.ilike(needle), cast(Contact.skills, String).ilike(needle)))
+        query = query.filter(or_(
+            Contact.name.ilike(needle),
+            Contact.email.ilike(needle),
+            Contact.position.ilike(needle),
+            Contact.notes.ilike(needle),
+            Contact.marital_status.ilike(needle),
+            Contact.hiring_personality_test.ilike(needle),
+            cast(Contact.skills, String).ilike(needle),
+        ))
     query = query.order_by(Contact.created_at.desc())
     return paginate(query, page, per_page, lambda contact: contact_to_dict(db, contact))
 

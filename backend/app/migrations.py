@@ -26,6 +26,7 @@ def migrate_existing_columns() -> None:
             "position": "ALTER TABLE users ADD COLUMN position VARCHAR(160)",
             "skills": f"ALTER TABLE users ADD COLUMN skills {json_type}",
             "notes": "ALTER TABLE users ADD COLUMN notes TEXT",
+            "marital_status": "ALTER TABLE users ADD COLUMN marital_status VARCHAR(40) DEFAULT 'single'",
             "profile_picture": "ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255)",
             "cover_photo": "ALTER TABLE users ADD COLUMN cover_photo VARCHAR(255)",
             "bio": "ALTER TABLE users ADD COLUMN bio TEXT",
@@ -58,10 +59,17 @@ def migrate_existing_columns() -> None:
             "attachment_url": "ALTER TABLE direct_messages ADD COLUMN attachment_url VARCHAR(255)",
             "voice_url": "ALTER TABLE direct_messages ADD COLUMN voice_url VARCHAR(255)",
         }
+        comment_columns = {
+            "attachments": f"ALTER TABLE community_comments ADD COLUMN attachments {json_type}",
+        }
         job_columns = {
             "company": "ALTER TABLE jobs ADD COLUMN company VARCHAR(180)",
             "location": "ALTER TABLE jobs ADD COLUMN location VARCHAR(180)",
             "job_type": "ALTER TABLE jobs ADD COLUMN job_type VARCHAR(80)",
+        }
+        contact_columns = {
+            "marital_status": "ALTER TABLE contacts ADD COLUMN marital_status VARCHAR(40) DEFAULT 'single'",
+            "hiring_personality_test": "ALTER TABLE contacts ADD COLUMN hiring_personality_test TEXT",
         }
     else:
         user_columns = {
@@ -69,6 +77,7 @@ def migrate_existing_columns() -> None:
             "position": "ALTER TABLE users ADD COLUMN position VARCHAR(160) NULL",
             "skills": f"ALTER TABLE users ADD COLUMN skills {json_type} NULL",
             "notes": "ALTER TABLE users ADD COLUMN notes TEXT NULL",
+            "marital_status": "ALTER TABLE users ADD COLUMN marital_status VARCHAR(40) DEFAULT 'single'",
             "profile_picture": "ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL",
             "cover_photo": "ALTER TABLE users ADD COLUMN cover_photo VARCHAR(255) NULL",
             "bio": "ALTER TABLE users ADD COLUMN bio TEXT NULL",
@@ -101,14 +110,23 @@ def migrate_existing_columns() -> None:
             "attachment_url": "ALTER TABLE direct_messages ADD COLUMN attachment_url VARCHAR(255) NULL",
             "voice_url": "ALTER TABLE direct_messages ADD COLUMN voice_url VARCHAR(255) NULL",
         }
+        comment_columns = {
+            "attachments": f"ALTER TABLE community_comments ADD COLUMN attachments {json_type} NULL",
+        }
         job_columns = {
             "company": "ALTER TABLE jobs ADD COLUMN company VARCHAR(180) NULL",
             "location": "ALTER TABLE jobs ADD COLUMN location VARCHAR(180) NULL",
             "job_type": "ALTER TABLE jobs ADD COLUMN job_type VARCHAR(80) NULL",
         }
+        contact_columns = {
+            "marital_status": "ALTER TABLE contacts ADD COLUMN marital_status VARCHAR(40) DEFAULT 'single'",
+            "hiring_personality_test": "ALTER TABLE contacts ADD COLUMN hiring_personality_test TEXT NULL",
+        }
 
     add_missing_columns("users", user_columns)
+    add_missing_columns("contacts", contact_columns)
     add_missing_columns("community_posts", post_columns)
+    add_missing_columns("community_comments", comment_columns)
     add_missing_columns("direct_messages", message_columns)
     add_missing_columns("jobs", job_columns)
 

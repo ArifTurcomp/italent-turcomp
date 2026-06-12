@@ -240,6 +240,17 @@ def seed_database(db: Session) -> None:
     seed_department("Operations", "Delivery, process improvement, and field coordination.")
     seed_department("Data & Science", "Analytics, research, AI learning, and science discussion.")
     seed_department("Creative & Hobbies", "Design, writing, photography, music, and hobby communities.")
+    seed_department("Human Resources", "People operations, hiring, onboarding, and employee experience.")
+    seed_department("Talent Acquisition", "Candidate sourcing, interviews, hiring pipelines, and assessment support.")
+    seed_department("Learning & Development", "Training programs, skill growth, internal courses, and coaching plans.")
+    seed_department("Product Management", "Roadmaps, discovery, user research, and product delivery planning.")
+    seed_department("Customer Success", "Client onboarding, support quality, retention, and service improvement.")
+    seed_department("Sales & Partnerships", "Business development, partner relationships, and commercial growth.")
+    seed_department("Finance & Admin", "Budgeting, administration, procurement, payroll, and reporting.")
+    seed_department("Quality Assurance", "Testing, process quality, release checks, and continuous improvement.")
+    seed_department("Cybersecurity", "Security awareness, risk reviews, access control, and incident readiness.")
+    seed_department("Cloud & DevOps", "Infrastructure, CI/CD, reliability, monitoring, and deployment practice.")
+    seed_department("Internship Program", "Intern mentorship, early-career development, and project placement.")
 
     seed_user(
         "admin@turcomp.com",

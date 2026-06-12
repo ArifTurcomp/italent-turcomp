@@ -27,6 +27,8 @@ const makeForm = (contact = {}) => ({
   position: contact.position || "",
   skills: joinList(contact.skills),
   notes: contact.notes || "",
+  marital_status: contact.marital_status || "single",
+  hiring_personality_test: contact.hiring_personality_test || "",
   department_id: contact.department_id ? String(contact.department_id) : "",
   status: contact.status || "active"
 });
@@ -65,6 +67,9 @@ const ContactDetailsScreen = ({ route, navigation }) => {
     if (!values.name.trim()) nextErrors.name = "Name is required.";
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
     if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
+    if (!["single", "married"].includes(values.marital_status.trim().toLowerCase())) {
+      nextErrors.marital_status = "Use single or married.";
+    }
     if (values.department_id && Number.isNaN(Number(values.department_id))) {
       nextErrors.department_id = "Group ID must be a number.";
     }
@@ -81,6 +86,8 @@ const ContactDetailsScreen = ({ route, navigation }) => {
       position: values.position.trim(),
       skills: splitCsv(values.skills),
       notes: values.notes.trim(),
+      marital_status: values.marital_status.trim().toLowerCase(),
+      hiring_personality_test: values.hiring_personality_test.trim(),
       department_id: values.department_id ? Number(values.department_id) : null,
       status: values.status
     };
@@ -168,6 +175,14 @@ const ContactDetailsScreen = ({ route, navigation }) => {
           onChangeText={(value) => updateValue("phone", value)}
         />
         <FormInput
+          label="Marital Status"
+          value={values.marital_status}
+          editable={isEditing}
+          error={errors.marital_status}
+          helperText={isEditing ? "Use single or married." : ""}
+          onChangeText={(value) => updateValue("marital_status", value)}
+        />
+        <FormInput
           label="Expertise / Role"
           value={values.position}
           editable={isEditing}
@@ -195,6 +210,14 @@ const ContactDetailsScreen = ({ route, navigation }) => {
           editable={isEditing}
           multiline
           onChangeText={(value) => updateValue("notes", value)}
+        />
+        <FormInput
+          label="Hiring Personality Test"
+          value={values.hiring_personality_test}
+          editable={isEditing}
+          multiline
+          helperText={isEditing ? "Add personality test result, work style, strengths, or hiring notes." : ""}
+          onChangeText={(value) => updateValue("hiring_personality_test", value)}
         />
         <FormInput
           label="Status"
