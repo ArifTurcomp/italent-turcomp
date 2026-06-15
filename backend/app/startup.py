@@ -32,10 +32,7 @@ def _database_host() -> Optional[str]:
         return None
 
 
-def _validate_database_host() -> None:
-    host = _database_host()
-    if not host:
-        raise RuntimeError(f"DATABASE_URL is missing a database host: {_database_url_for_logs()}")
+def _validate_database_host(host: str) -> None:
     try:
         socket.getaddrinfo(host, None)
     except socket.gaierror as exc:
@@ -47,10 +44,14 @@ def _validate_database_host() -> None:
 
 
 def init_database() -> None:
-    _validate_database_host()
+    host = _database_host()
+    if not host:
+        raise RuntimeError(f"DATABASE_URL is missing a database host: {_database_url_for_logs()}")
+
     last_error: Optional[Exception] = None
     for attempt in range(1, DATABASE_CONNECT_RETRIES + 1):
         try:
+            _validate_database_host(host)
             Base.metadata.create_all(bind=engine)
             migrate_existing_columns()
             if SEED_DATABASE:
