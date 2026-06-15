@@ -118,34 +118,22 @@ export const fetchContactById = createAsyncThunk(
   }
 );
 
-export const createContact = createAsyncThunk(
-  "contacts/create",
-  async (payload, { rejectWithValue }) => {
+export const sendConnectionRequest = createAsyncThunk(
+  "connections/request",
+  async ({ recipient_id, message = "" }, { rejectWithValue }) => {
     try {
-      return await api.contacts.create(payload);
+      return await api.connections.request({ recipient_id, message });
     } catch (error) {
       return rejectMessage(error, rejectWithValue);
     }
   }
 );
 
-export const updateContact = createAsyncThunk(
-  "contacts/update",
-  async ({ id, payload }, { rejectWithValue }) => {
+export const respondConnectionRequest = createAsyncThunk(
+  "connections/respond",
+  async ({ id, status }, { rejectWithValue }) => {
     try {
-      return await api.contacts.update(id, payload);
-    } catch (error) {
-      return rejectMessage(error, rejectWithValue);
-    }
-  }
-);
-
-export const deleteContact = createAsyncThunk(
-  "contacts/delete",
-  async (id, { rejectWithValue }) => {
-    try {
-      await api.contacts.remove(id);
-      return id;
+      return await api.connections.respond(id, { status });
     } catch (error) {
       return rejectMessage(error, rejectWithValue);
     }
@@ -363,6 +351,13 @@ const authSlice = createSlice({
   }
 });
 
+const withConnectionState = (contact, connection, direction) => ({
+  ...contact,
+  connection_id: connection.id,
+  connection_status: connection.status,
+  connection_direction: direction
+});
+
 const contactsSlice = createSlice({
   name: "contacts",
   initialState: {
@@ -408,35 +403,41 @@ const contactsSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(createContact.pending, (state) => {
-        state.saving = true;
-        state.error = null;
-      })
-      .addCase(createContact.fulfilled, (state, action) => {
-        state.saving = false;
-        state.items.unshift(action.payload);
-      })
-      .addCase(createContact.rejected, (state, action) => {
-        state.saving = false;
-        state.error = action.payload;
-      })
-      .addCase(updateContact.pending, (state) => {
-        state.saving = true;
-        state.error = null;
-      })
-      .addCase(updateContact.fulfilled, (state, action) => {
-        state.saving = false;
-        state.selectedContact = action.payload;
+      .addCase(sendConnectionRequest.fulfilled, (state, action) => {
+        const connection = action.payload;
         state.items = state.items.map((item) =>
-          item.id === action.payload.id ? action.payload : item
+          item.id === connection.recipient_id
+            ? withConnectionState(item, connection, "outgoing")
+            : item
         );
+        if (state.selectedContact?.id === connection.recipient_id) {
+          state.selectedContact = withConnectionState(
+            state.selectedContact,
+            connection,
+            "outgoing"
+          );
+        }
       })
-      .addCase(updateContact.rejected, (state, action) => {
-        state.saving = false;
+      .addCase(sendConnectionRequest.rejected, (state, action) => {
         state.error = action.payload;
       })
-      .addCase(deleteContact.fulfilled, (state, action) => {
-        state.items = state.items.filter((item) => item.id !== action.payload);
+      .addCase(respondConnectionRequest.fulfilled, (state, action) => {
+        const connection = action.payload;
+        state.items = state.items.map((item) =>
+          item.id === connection.requester_id
+            ? withConnectionState(item, connection, "incoming")
+            : item
+        );
+        if (state.selectedContact?.id === connection.requester_id) {
+          state.selectedContact = withConnectionState(
+            state.selectedContact,
+            connection,
+            "incoming"
+          );
+        }
+      })
+      .addCase(respondConnectionRequest.rejected, (state, action) => {
+        state.error = action.payload;
       })
       .addCase(loginUser.fulfilled, (state) => {
         state.items = [];

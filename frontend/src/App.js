@@ -5,7 +5,6 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import LoadingSpinner from "./components/LoadingSpinner";
-import AddContactScreen from "./screens/AddContactScreen";
 import ContactDetailsScreen from "./screens/ContactDetailsScreen";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 import LoginScreen from "./screens/LoginScreen";
@@ -59,11 +58,6 @@ const AppNavigator = () => (
       name="ContactDetails"
       component={ContactDetailsScreen}
       options={{ title: "Profile Details" }}
-    />
-    <AppStack.Screen
-      name="AddContact"
-      component={AddContactScreen}
-      options={{ title: "Add Person" }}
     />
   </AppStack.Navigator>
 );

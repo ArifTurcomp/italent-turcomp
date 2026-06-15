@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,7 +11,11 @@ import { useDispatch, useSelector } from "react-redux";
 import ContactCard from "../components/ContactCard";
 import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { deleteContact, fetchContacts } from "../store/store";
+import {
+  fetchContacts,
+  respondConnectionRequest,
+  sendConnectionRequest
+} from "../store/store";
 import { colors } from "../utils/helpers";
 
 const ContactsScreen = ({ navigation, initialSearch = "" }) => {
@@ -21,6 +24,7 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
   const user = useSelector((state) => state.auth.user);
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
+  const [connectionSavingId, setConnectionSavingId] = useState(null);
 
   const query = useMemo(
     () => ({
@@ -40,15 +44,34 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
     return () => clearTimeout(timer);
   }, [loadContacts]);
 
-  const confirmDelete = (contact) => {
-    Alert.alert("Delete profile", `Remove ${contact.name} from iTalent?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => dispatch(deleteContact(contact.id))
-      }
-    ]);
+  useEffect(() => {
+    setSearch(initialSearch);
+    setPage(1);
+  }, [initialSearch]);
+
+  const sendRequest = async (contact) => {
+    setConnectionSavingId(contact.id);
+    try {
+      await dispatch(sendConnectionRequest({ recipient_id: contact.id })).unwrap();
+    } catch (_) {
+      // The Redux error state renders below the search box.
+    } finally {
+      setConnectionSavingId(null);
+    }
+  };
+
+  const acceptRequest = async (contact) => {
+    if (!contact.connection_id) return;
+    setConnectionSavingId(contact.id);
+    try {
+      await dispatch(
+        respondConnectionRequest({ id: contact.connection_id, status: "accepted" })
+      ).unwrap();
+    } catch (_) {
+      // The Redux error state renders below the search box.
+    } finally {
+      setConnectionSavingId(null);
+    }
   };
 
   const canGoBack = page > 1;
@@ -59,11 +82,8 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
       <View style={styles.toolbar}>
         <View style={styles.toolbarText}>
           <Text style={styles.title}>People</Text>
-          <Text style={styles.subtitle}>{pagination.total || items.length} people sharing expertise</Text>
+          <Text style={styles.subtitle}>{pagination.total || items.length} registered members sharing expertise</Text>
         </View>
-        <Pressable style={styles.addButton} onPress={() => navigation.navigate("AddContact")}>
-          <Text style={styles.addButtonText}>Add</Text>
-        </Pressable>
       </View>
 
       <FormInput
@@ -91,18 +111,19 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
             <ContactCard
               contact={item}
               onPress={() => navigation.navigate("ContactDetails", { contactId: item.id })}
-              onEdit={
-                item.created_by_id === user?.id
-                  ? () => navigation.navigate("ContactDetails", { contactId: item.id, edit: true })
+              onConnect={item.id !== user?.id ? () => sendRequest(item) : undefined}
+              onAccept={
+                item.id !== user?.id && item.connection_direction === "incoming"
+                  ? () => acceptRequest(item)
                   : undefined
               }
-              onDelete={item.created_by_id === user?.id ? () => confirmDelete(item) : undefined}
+              connectionSaving={connectionSavingId === item.id}
             />
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No people found</Text>
-              <Text style={styles.emptyCopy}>Try another search or add the first community profile.</Text>
+              <Text style={styles.emptyCopy}>Try another search or ask them to register an iTalent account.</Text>
             </View>
           }
           ListFooterComponent={
@@ -158,16 +179,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     marginTop: 2
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 11
-  },
-  addButtonText: {
-    color: colors.surface,
-    fontWeight: "900"
   },
   search: {
     marginBottom: 4

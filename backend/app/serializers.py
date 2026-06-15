@@ -1,5 +1,6 @@
 ﻿from typing import Any, Dict, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models import *  # noqa: F401,F403
@@ -44,10 +45,49 @@ def department_to_dict(department: Department, db: Optional[Session] = None) -> 
         "description": department.description,
         "leader_id": department.leader_id,
         "leader_name": f"{leader.first_name} {leader.last_name}".strip() if leader else None,
-        "members_count": db.query(Contact).filter(Contact.department_id == department.id).count() if db else 0,
+        "members_count": db.query(User).filter(User.department_id == department.id).count() if db else 0,
         "created_at": iso(department.created_at),
         "updated_at": iso(department.updated_at),
     }
+
+
+def user_directory_to_dict(
+    db: Session,
+    user: User,
+    current_user_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    department = db.get(Department, user.department_id) if user.department_id else None
+    data = public_user(user)
+    data["name"] = f"{user.first_name} {user.last_name}".strip() or user.username
+    data["department"] = department.name if department else None
+    data["hiring_personality_test"] = ""
+    data["created_by_id"] = user.id
+    data["connection_id"] = None
+    data["connection_status"] = None
+    data["connection_direction"] = None
+
+    if current_user_id and user.id != current_user_id:
+        connection = (
+            db.query(ConnectionRequest)
+            .filter(
+                or_(
+                    (ConnectionRequest.requester_id == current_user_id)
+                    & (ConnectionRequest.recipient_id == user.id),
+                    (ConnectionRequest.requester_id == user.id)
+                    & (ConnectionRequest.recipient_id == current_user_id),
+                )
+            )
+            .order_by(ConnectionRequest.updated_at.desc())
+            .first()
+        )
+        if connection:
+            data["connection_id"] = connection.id
+            data["connection_status"] = connection.status
+            data["connection_direction"] = (
+                "outgoing" if connection.requester_id == current_user_id else "incoming"
+            )
+
+    return data
 
 
 def contact_to_dict(db: Session, contact: Contact) -> Dict[str, Any]:

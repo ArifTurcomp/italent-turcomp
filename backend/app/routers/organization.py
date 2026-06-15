@@ -43,68 +43,51 @@ def update_department(department_id: int, payload: DepartmentPayload, _: User = 
 
 @router.get("/api/departments/{department_id}/members")
 def department_members(department_id: int, page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    query = db.query(Contact).filter(Contact.department_id == department_id).order_by(Contact.name)
-    return paginate(query, page, per_page, lambda contact: contact_to_dict(db, contact))
+    query = db.query(User).filter(User.department_id == department_id).order_by(User.first_name, User.last_name)
+    return paginate(query, page, per_page, lambda user: user_directory_to_dict(db, user, _.id))
 
 
 @router.get("/api/contacts")
-def list_contacts(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), department_id: Optional[int] = None, status_filter: Optional[str] = Query(None, alias="status"), search: Optional[str] = None, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    query = db.query(Contact)
+def list_contacts(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100), department_id: Optional[int] = None, status_filter: Optional[str] = Query(None, alias="status"), search: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
+    query = db.query(User).filter(User.id != current_user.id)
     if department_id:
-        query = query.filter(Contact.department_id == department_id)
+        query = query.filter(User.department_id == department_id)
     if status_filter:
-        query = query.filter(Contact.status == status_filter)
+        query = query.filter(User.status == status_filter)
     if search:
         needle = f"%{search.lower()}%"
         query = query.filter(or_(
-            Contact.name.ilike(needle),
-            Contact.email.ilike(needle),
-            Contact.position.ilike(needle),
-            Contact.notes.ilike(needle),
-            Contact.marital_status.ilike(needle),
-            Contact.hiring_personality_test.ilike(needle),
-            cast(Contact.skills, String).ilike(needle),
+            User.first_name.ilike(needle),
+            User.last_name.ilike(needle),
+            User.username.ilike(needle),
+            User.email.ilike(needle),
+            User.position.ilike(needle),
+            User.notes.ilike(needle),
+            User.marital_status.ilike(needle),
+            cast(User.skills, String).ilike(needle),
         ))
-    query = query.order_by(Contact.created_at.desc())
-    return paginate(query, page, per_page, lambda contact: contact_to_dict(db, contact))
+    query = query.order_by(User.created_at.desc())
+    return paginate(query, page, per_page, lambda user: user_directory_to_dict(db, user, current_user.id))
 
 
 @router.get("/api/contacts/{contact_id}")
 def get_contact(contact_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    contact = db.get(Contact, contact_id)
-    if not contact:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
-    return contact_to_dict(db, contact)
+    user = db.get(User, contact_id)
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Person not found")
+    return user_directory_to_dict(db, user, _.id)
 
 
 @router.post("/api/contacts")
-def create_contact(payload: ContactPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    now = utc_now()
-    contact = Contact(**dump(payload), created_by_id=current_user.id, created_at=now, updated_at=now)
-    db.add(contact)
-    db.commit()
-    db.refresh(contact)
-    return contact_to_dict(db, contact)
+def create_contact(_: User = Depends(get_current_user)) -> Dict[str, Any]:
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "People must register and sign in before they can be added.")
 
 
 @router.put("/api/contacts/{contact_id}")
-def update_contact(contact_id: int, payload: ContactPayload, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    contact = db.get(Contact, contact_id)
-    if not contact or contact.created_by_id != current_user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
-    for key, value in dump(payload).items():
-        setattr(contact, key, value)
-    contact.updated_at = utc_now()
-    db.commit()
-    db.refresh(contact)
-    return contact_to_dict(db, contact)
+def update_contact(contact_id: int, _: User = Depends(get_current_user)) -> Dict[str, Any]:
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "People profiles are managed by the registered account owner.")
 
 
 @router.delete("/api/contacts/{contact_id}")
-def delete_contact(contact_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, str]:
-    contact = db.get(Contact, contact_id)
-    if not contact or contact.created_by_id != current_user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Contact not found")
-    db.delete(contact)
-    db.commit()
-    return {"message": "Contact deleted"}
+def delete_contact(contact_id: int, _: User = Depends(get_current_user)) -> Dict[str, str]:
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "Registered people cannot be removed from the directory by another user.")

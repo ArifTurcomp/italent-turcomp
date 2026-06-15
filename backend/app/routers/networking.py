@@ -40,6 +40,21 @@ def send_connection_request(
         .first()
     )
     if existing:
+        if existing.status == "rejected":
+            existing.requester_id = current_user.id
+            existing.recipient_id = payload.recipient_id
+            existing.message = (payload.message or "").strip()
+            existing.status = "pending"
+            existing.updated_at = utc_now()
+            create_notification(
+                db,
+                payload.recipient_id,
+                "New connection request",
+                f"{current_user.first_name} wants to connect.",
+                "connection",
+            )
+            db.commit()
+            db.refresh(existing)
         return connection_to_dict(db, existing)
     now = utc_now()
     connection = ConnectionRequest(

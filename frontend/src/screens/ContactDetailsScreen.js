@@ -1,120 +1,78 @@
 import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
 import {
   clearSelectedContact,
-  deleteContact,
   fetchContactById,
-  updateContact
+  respondConnectionRequest,
+  sendConnectionRequest
 } from "../store/store";
-import { colors, formatDate, isEmail, joinList, splitCsv } from "../utils/helpers";
+import { colors, formatDate, joinList } from "../utils/helpers";
 
-const makeForm = (contact = {}) => ({
-  name: contact.name || "",
-  email: contact.email || "",
-  phone: contact.phone || "",
-  position: contact.position || "",
-  skills: joinList(contact.skills),
-  notes: contact.notes || "",
-  marital_status: contact.marital_status || "single",
-  hiring_personality_test: contact.hiring_personality_test || "",
-  department_id: contact.department_id ? String(contact.department_id) : "",
-  status: contact.status || "active"
-});
+const displayName = (person = {}) =>
+  person.name ||
+  `${person.first_name || ""} ${person.last_name || ""}`.trim() ||
+  person.username ||
+  "Community Member";
 
-const ContactDetailsScreen = ({ route, navigation }) => {
-  const { contactId, edit } = route.params || {};
+const connectionAction = (person = {}) => {
+  if (person.connection_status === "accepted") {
+    return { label: "Friends", disabled: true };
+  }
+  if (person.connection_status === "pending" && person.connection_direction === "outgoing") {
+    return { label: "Requested", disabled: true };
+  }
+  if (person.connection_status === "pending" && person.connection_direction === "incoming") {
+    return { label: "Accept Friend" };
+  }
+  return { label: "Add Friend" };
+};
+
+const ProfileRow = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+};
+
+const ContactDetailsScreen = ({ route }) => {
+  const { contactId } = route.params || {};
   const dispatch = useDispatch();
-  const { selectedContact, loading, saving, error } = useSelector((state) => state.contacts);
-  const user = useSelector((state) => state.auth.user);
-  const [isEditing, setIsEditing] = useState(Boolean(edit));
-  const [values, setValues] = useState(makeForm());
-  const [errors, setErrors] = useState({});
+  const { selectedContact, loading, error } = useSelector((state) => state.contacts);
+  const currentUser = useSelector((state) => state.auth.user);
+  const [connectionSaving, setConnectionSaving] = useState(false);
 
   useEffect(() => {
     dispatch(fetchContactById(contactId));
     return () => dispatch(clearSelectedContact());
   }, [contactId, dispatch]);
 
-  useEffect(() => {
-    if (selectedContact) setValues(makeForm(selectedContact));
-  }, [selectedContact]);
+  const handleConnection = async () => {
+    if (!selectedContact || selectedContact.id === currentUser?.id) return;
+    const action = connectionAction(selectedContact);
+    if (action.disabled) return;
 
-  const canManage = selectedContact?.created_by_id === user?.id;
-
-  useEffect(() => {
-    if (selectedContact && !canManage) setIsEditing(false);
-  }, [canManage, selectedContact]);
-
-  const updateValue = (field, value) => {
-    setValues((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: "" }));
-  };
-
-  const validate = () => {
-    const nextErrors = {};
-    if (!values.name.trim()) nextErrors.name = "Name is required.";
-    if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
-    if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
-    if (!["single", "married"].includes(values.marital_status.trim().toLowerCase())) {
-      nextErrors.marital_status = "Use single or married.";
-    }
-    if (values.department_id && Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Group ID must be a number.";
-    }
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validate()) return;
-    const payload = {
-      name: values.name.trim(),
-      email: values.email.trim().toLowerCase(),
-      phone: values.phone.trim(),
-      position: values.position.trim(),
-      skills: splitCsv(values.skills),
-      notes: values.notes.trim(),
-      marital_status: values.marital_status.trim().toLowerCase(),
-      hiring_personality_test: values.hiring_personality_test.trim(),
-      department_id: values.department_id ? Number(values.department_id) : null,
-      status: values.status
-    };
+    setConnectionSaving(true);
     try {
-      await dispatch(updateContact({ id: contactId, payload })).unwrap();
-      setIsEditing(false);
-    } catch (_) {
-      // The Redux error state renders below the form.
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert("Delete profile", `Remove ${selectedContact?.name || "this profile"}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await dispatch(deleteContact(contactId)).unwrap();
-            navigation.goBack();
-          } catch (_) {
-            // The Redux error state renders below the form.
-          }
-        }
+      if (selectedContact.connection_direction === "incoming" && selectedContact.connection_id) {
+        await dispatch(
+          respondConnectionRequest({
+            id: selectedContact.connection_id,
+            status: "accepted"
+          })
+        ).unwrap();
+      } else {
+        await dispatch(sendConnectionRequest({ recipient_id: selectedContact.id })).unwrap();
       }
-    ]);
+    } catch (_) {
+      // The Redux error state renders below the profile header.
+    } finally {
+      setConnectionSaving(false);
+    }
   };
 
   if (loading && !selectedContact) {
@@ -130,122 +88,62 @@ const ContactDetailsScreen = ({ route, navigation }) => {
     );
   }
 
+  const name = displayName(selectedContact);
+  const skills = joinList(selectedContact.skills);
+  const action = connectionAction(selectedContact);
+  const canConnect = selectedContact.id !== currentUser?.id;
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.screen}
-    >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{selectedContact.name}</Text>
-            <Text style={styles.subtitle}>
-              Updated {formatDate(selectedContact.updated_at || selectedContact.created_at)}
-            </Text>
-          </View>
-          {canManage ? (
-            <Pressable style={styles.secondaryButton} onPress={() => setIsEditing((value) => !value)}>
-              <Text style={styles.secondaryText}>{isEditing ? "Cancel" : "Edit"}</Text>
-            </Pressable>
-          ) : null}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {name
+              .split(" ")
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((part) => part[0]?.toUpperCase())
+              .join("") || "IT"}
+          </Text>
         </View>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>{name}</Text>
+          <Text style={styles.subtitle}>{selectedContact.position || "Registered member"}</Text>
+          <Text style={styles.meta}>
+            Joined {formatDate(selectedContact.created_at)}
+          </Text>
+        </View>
+      </View>
 
-        <FormInput
-          label="Full Name"
-          value={values.name}
-          editable={isEditing}
-          error={errors.name}
-          onChangeText={(value) => updateValue("name", value)}
-        />
-        <FormInput
-          label="Email"
-          value={values.email}
-          editable={isEditing}
-          error={errors.email}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          onChangeText={(value) => updateValue("email", value)}
-        />
-        <FormInput
-          label="Phone (private)"
-          value={values.phone}
-          editable={isEditing}
-          keyboardType="phone-pad"
-          helperText={isEditing ? "Stored for follow-up only; phone numbers are not shown on public cards." : ""}
-          onChangeText={(value) => updateValue("phone", value)}
-        />
-        <FormInput
-          label="Marital Status"
-          value={values.marital_status}
-          editable={isEditing}
-          error={errors.marital_status}
-          helperText={isEditing ? "Use single or married." : ""}
-          onChangeText={(value) => updateValue("marital_status", value)}
-        />
-        <FormInput
-          label="Expertise / Role"
-          value={values.position}
-          editable={isEditing}
-          error={errors.position}
-          onChangeText={(value) => updateValue("position", value)}
-        />
-        <FormInput
-          label="Group ID"
-          value={values.department_id}
-          editable={isEditing}
-          error={errors.department_id}
-          keyboardType="number-pad"
-          onChangeText={(value) => updateValue("department_id", value)}
-        />
-        <FormInput
-          label="Expertise Tags"
-          value={values.skills}
-          editable={isEditing}
-          helperText={isEditing ? "Separate expertise, coaching topics, or interests with commas." : ""}
-          onChangeText={(value) => updateValue("skills", value)}
-        />
-        <FormInput
-          label="Notes"
-          value={values.notes}
-          editable={isEditing}
-          multiline
-          onChangeText={(value) => updateValue("notes", value)}
-        />
-        <FormInput
-          label="Hiring Personality Test"
-          value={values.hiring_personality_test}
-          editable={isEditing}
-          multiline
-          helperText={isEditing ? "Add personality test result, work style, strengths, or hiring notes." : ""}
-          onChangeText={(value) => updateValue("hiring_personality_test", value)}
-        />
-        <FormInput
-          label="Status"
-          value={values.status}
-          editable={isEditing}
-          helperText={isEditing ? "Use active, inactive, or hired." : ""}
-          onChangeText={(value) => updateValue("status", value)}
-        />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+      {canConnect ? (
+        <Pressable
+          disabled={connectionSaving || action.disabled}
+          style={[
+            styles.primaryButton,
+            (connectionSaving || action.disabled) && styles.disabledButton
+          ]}
+          onPress={handleConnection}
+        >
+          <Text style={styles.primaryText}>
+            {connectionSaving ? "Saving..." : action.label}
+          </Text>
+        </Pressable>
+      ) : null}
 
-        {isEditing ? (
-          <Pressable
-            disabled={saving}
-            style={[styles.primaryButton, saving && styles.disabledButton]}
-            onPress={handleSave}
-          >
-            {saving ? <LoadingSpinner size="small" /> : <Text style={styles.primaryText}>Save Changes</Text>}
-          </Pressable>
-        ) : null}
-
-        {canManage ? (
-          <Pressable style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteText}>Delete Profile</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account Profile</Text>
+        <ProfileRow label="Email" value={selectedContact.email} />
+        <ProfileRow label="Group" value={selectedContact.department || "Unassigned"} />
+        <ProfileRow label="Expertise" value={skills} />
+        <ProfileRow label="Marital Status" value={selectedContact.marital_status} />
+        <ProfileRow label="Bio" value={selectedContact.bio} />
+        <ProfileRow label="Notes" value={selectedContact.notes} />
+        <ProfileRow label="Portfolio" value={selectedContact.portfolio_url} />
+        <ProfileRow label="Resume" value={selectedContact.resume_url} />
+      </View>
+    </ScrollView>
   );
 };
 
@@ -260,8 +158,27 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 18
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14
+  },
+  avatarText: {
+    color: colors.surface,
+    fontSize: 17,
+    fontWeight: "900"
   },
   headerText: {
     flex: 1,
@@ -269,12 +186,18 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: "900"
   },
   subtitle: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 4
+  },
+  meta: {
     color: colors.muted,
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 4
   },
   primaryButton: {
@@ -283,36 +206,46 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4
+    marginBottom: 14
   },
   disabledButton: {
-    opacity: 0.7
+    opacity: 0.6
   },
   primaryText: {
     color: colors.surface,
     fontWeight: "900",
     fontSize: 15
   },
-  secondaryButton: {
-    borderWidth: 1,
+  section: {
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.surface
+    borderWidth: 1,
+    padding: 16
   },
-  secondaryText: {
-    color: colors.primary,
-    fontWeight: "900"
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 4
   },
-  deleteButton: {
-    alignItems: "center",
-    marginTop: 18,
-    paddingVertical: 12
+  infoRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+    marginTop: 12
   },
-  deleteText: {
-    color: colors.danger,
-    fontWeight: "900"
+  infoLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  infoValue: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 5
   },
   error: {
     color: colors.danger,

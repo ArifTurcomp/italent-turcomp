@@ -6,26 +6,49 @@ import { colors, getInitials, joinList } from "../utils/helpers";
 /**
  * Displays a contact summary with optional view/edit/delete actions.
  */
-const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
+const getDisplayName = (contact) =>
+  contact.name ||
+  `${contact.first_name || ""} ${contact.last_name || ""}`.trim() ||
+  contact.username ||
+  "Community Member";
+
+const getConnectionAction = (contact) => {
+  if (contact.connection_status === "accepted") {
+    return { label: "Friends", disabled: true };
+  }
+  if (contact.connection_status === "pending" && contact.connection_direction === "outgoing") {
+    return { label: "Requested", disabled: true };
+  }
+  if (contact.connection_status === "pending" && contact.connection_direction === "incoming") {
+    return { label: "Accept", action: "accept" };
+  }
+  return { label: "Add Friend", action: "connect" };
+};
+
+const ContactCard = ({ contact, onPress, onEdit, onDelete, onConnect, onAccept, connectionSaving }) => {
   const status = contact.status || "active";
   const department = contact.department?.name || contact.department || contact.dept || "Unassigned";
   const skills = joinList(contact.skills);
   const maritalStatus = contact.marital_status || "single";
+  const name = getDisplayName(contact);
+  const connectionAction = getConnectionAction(contact);
+  const handleConnectionPress =
+    connectionAction.action === "accept" ? onAccept : onConnect;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${contact.name}`}
+      accessibilityLabel={`Open ${name}`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(contact.name)}</Text>
+          <Text style={styles.avatarText}>{getInitials(name)}</Text>
         </View>
         <View style={styles.identity}>
           <Text style={styles.name} numberOfLines={1}>
-            {contact.name}
+            {name}
           </Text>
           <Text style={styles.position} numberOfLines={1}>
             {contact.position || department}
@@ -52,6 +75,21 @@ const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
       ) : null}
 
       <View style={styles.actions}>
+        {handleConnectionPress ? (
+          <Pressable
+            disabled={connectionSaving || connectionAction.disabled}
+            style={[
+              styles.actionButton,
+              styles.connectButton,
+              (connectionSaving || connectionAction.disabled) && styles.disabledButton
+            ]}
+            onPress={handleConnectionPress}
+          >
+            <Text style={[styles.actionText, styles.connectText]}>
+              {connectionSaving ? "Saving..." : connectionAction.label}
+            </Text>
+          </Pressable>
+        ) : null}
         {onEdit ? (
           <Pressable style={styles.actionButton} onPress={onEdit}>
             <Text style={styles.actionText}>Edit</Text>
@@ -70,7 +108,10 @@ const ContactCard = ({ contact, onPress, onEdit, onDelete }) => {
 ContactCard.propTypes = {
   contact: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    name: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    username: PropTypes.string,
+    first_name: PropTypes.string,
+    last_name: PropTypes.string,
     email: PropTypes.string,
     phone: PropTypes.string,
     position: PropTypes.string,
@@ -79,17 +120,25 @@ ContactCard.propTypes = {
     department: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     dept: PropTypes.string,
     skills: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
-    status: PropTypes.string
+    status: PropTypes.string,
+    connection_status: PropTypes.string,
+    connection_direction: PropTypes.string
   }).isRequired,
   onPress: PropTypes.func,
   onEdit: PropTypes.func,
-  onDelete: PropTypes.func
+  onDelete: PropTypes.func,
+  onConnect: PropTypes.func,
+  onAccept: PropTypes.func,
+  connectionSaving: PropTypes.bool
 };
 
 ContactCard.defaultProps = {
   onPress: undefined,
   onEdit: undefined,
-  onDelete: undefined
+  onDelete: undefined,
+  onConnect: undefined,
+  onAccept: undefined,
+  connectionSaving: false
 };
 
 const styles = StyleSheet.create({
@@ -188,10 +237,20 @@ const styles = StyleSheet.create({
   deleteButton: {
     borderColor: "#F1B8B2"
   },
+  connectButton: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft
+  },
+  disabledButton: {
+    opacity: 0.6
+  },
   actionText: {
     color: colors.primary,
     fontSize: 13,
     fontWeight: "800"
+  },
+  connectText: {
+    color: colors.primary
   },
   deleteText: {
     color: colors.danger

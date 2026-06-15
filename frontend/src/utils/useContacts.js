@@ -1,10 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import {
-  createContact,
-  deleteContact,
   fetchContactById,
-  fetchContacts,
-  updateContact
+  fetchContacts
 } from "../store/store";
 
 export const useContacts = () => {
@@ -14,9 +11,6 @@ export const useContacts = () => {
   return {
     ...contacts,
     loadContacts: (params) => dispatch(fetchContacts(params)).unwrap(),
-    loadContact: (id) => dispatch(fetchContactById(id)).unwrap(),
-    addContact: (payload) => dispatch(createContact(payload)).unwrap(),
-    saveContact: (id, payload) => dispatch(updateContact({ id, payload })).unwrap(),
-    removeContact: (id) => dispatch(deleteContact(id)).unwrap()
+    loadContact: (id) => dispatch(fetchContactById(id)).unwrap()
   };
 };

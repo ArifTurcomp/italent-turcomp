@@ -57,10 +57,12 @@ const api = {
   },
   contacts: {
     list: (params = {}) => unwrap(apiClient.get("/contacts", { params })),
-    get: (id) => unwrap(apiClient.get(`/contacts/${id}`)),
-    create: (payload) => unwrap(apiClient.post("/contacts", payload)),
-    update: (id, payload) => unwrap(apiClient.put(`/contacts/${id}`, payload)),
-    remove: (id) => unwrap(apiClient.delete(`/contacts/${id}`))
+    get: (id) => unwrap(apiClient.get(`/contacts/${id}`))
+  },
+  connections: {
+    list: (params = {}) => unwrap(apiClient.get("/connections", { params })),
+    request: (payload) => unwrap(apiClient.post("/connections/request", payload)),
+    respond: (id, payload) => unwrap(apiClient.put(`/connections/${id}/respond`, payload))
   },
   departments: {
     list: (params = {}) => unwrap(apiClient.get("/departments", { params })),

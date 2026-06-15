@@ -47,7 +47,7 @@ const DashboardScreen = ({ onNavigate }) => {
       </View>
 
       <View style={styles.statsGrid}>
-        <StatCard label="People Added" value={contacts.pagination.total || contacts.items.length} />
+        <StatCard label="Registered People" value={contacts.pagination.total || contacts.items.length} />
         <StatCard label="Groups" value={departments.length} />
         <StatCard label="Group Members" value={groupMemberTotal || contacts.pagination.total || contacts.items.length} />
         <StatCard label="Mentorship & Coaching" value={openOffers} />
