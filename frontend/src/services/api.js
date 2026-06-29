@@ -4,7 +4,11 @@ import { Platform } from "react-native";
 
 const normalizeApiBaseUrl = (url) => {
   const defaultApiUrl =
-    Platform.OS === "android" ? "http://10.0.2.2:8000/api" : "http://localhost:8000/api";
+    Platform.OS === "android"
+      ? "http://10.0.2.2:8000/api"
+      : Platform.OS === "web"
+      ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:8000"}/api`
+      : "http://localhost:8000/api";
   const trimmedUrl = (url || defaultApiUrl).replace(/\/+$/, "");
   return trimmedUrl.endsWith("/api") ? trimmedUrl : `${trimmedUrl}/api`;
 };
@@ -13,7 +17,7 @@ const API_BASE_URL = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json"
   }
