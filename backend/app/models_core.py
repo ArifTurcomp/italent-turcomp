@@ -17,6 +17,7 @@ class User(Base):
     position = Column(String(160), nullable=True)
     skills = Column(JSON, nullable=True, default=list)
     notes = Column(Text, nullable=True)
+    gender = Column(String(40), nullable=False, default="prefer_not_to_say")
     marital_status = Column(String(40), nullable=False, default="single")
     profile_picture = Column(String(255), nullable=True)
     cover_photo = Column(String(255), nullable=True)

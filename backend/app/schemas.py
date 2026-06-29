@@ -24,6 +24,7 @@ class RegisterRequest(LoginRequest):
     position: str = Field(min_length=1)
     skills: List[str] = Field(default_factory=list)
     notes: Optional[str] = ""
+    gender: str = "prefer_not_to_say"
     marital_status: str = "single"
     role: str = "user"
     department_id: int
@@ -36,6 +37,7 @@ class ProfileUpdateRequest(BaseModel):
     position: str = Field(min_length=1)
     skills: List[str] = Field(default_factory=list)
     notes: Optional[str] = ""
+    gender: str = "prefer_not_to_say"
     marital_status: str = "single"
     department_id: int
     profile_picture: Optional[str] = ""

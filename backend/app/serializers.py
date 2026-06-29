@@ -16,6 +16,7 @@ def public_user(user: User) -> Dict[str, Any]:
         "position": user.position or "",
         "skills": user.skills or [],
         "notes": user.notes or "",
+        "gender": user.gender or "prefer_not_to_say",
         "marital_status": user.marital_status or "single",
         "profile_picture": user.profile_picture or "",
         "cover_photo": user.cover_photo or "",

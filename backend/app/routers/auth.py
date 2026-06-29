@@ -67,6 +67,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[st
         position=payload.position.strip(),
         skills=payload.skills,
         notes=(payload.notes or "").strip(),
+        gender=payload.gender.strip().lower(),
         marital_status=payload.marital_status.strip().lower(),
         role=payload.role,
         department_id=payload.department_id,
