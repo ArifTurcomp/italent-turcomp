@@ -1,11 +1,28 @@
 ﻿from fastapi import APIRouter
 from app.routes_shared import *  # noqa: F401,F403
 
+from typing import Dict, Any
+
+
 router = APIRouter()
 
+
+
 @router.get("/api/users")
-def list_users(_: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    return {"items": [public_user(user) for user in db.query(User).order_by(User.id).all()]}
+def list_users(
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    # Prevent unbounded result sets that cause lag and request-limit spikes.
+    limit = max(1, min(limit, 50))
+    offset = max(0, offset)
+
+    q = db.query(User).order_by(User.id)
+    items = [public_user(user) for user in q.offset(offset).limit(limit).all()]
+    return {"items": items, "limit": limit, "offset": offset}
+
 
 
 @router.get("/api/users/me")
@@ -67,12 +84,33 @@ def update_privacy_settings(
     return public_user(current_user)
 
 
+_PROFILE_CACHE: dict[int, tuple[float, Dict[str, Any]]] = {}
+_PROFILE_CACHE_TTL_SECONDS = 20.0
+
+
 @router.get("/api/users/{user_id}/profile")
-def get_user_profile(user_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_user_profile(
+    user_id: int,
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    import time as _time
+
+    now = _time.time()
+    cached = _PROFILE_CACHE.get(user_id)
+    if cached:
+        ts, value = cached
+        if now - ts <= _PROFILE_CACHE_TTL_SECONDS:
+            return value
+
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-    return public_user(user)
+
+    value = public_user(user)
+    _PROFILE_CACHE[user_id] = (now, value)
+    return value
+
 
 
 @router.post("/api/users/{user_id}/follow")
@@ -121,9 +159,24 @@ def endorse_user_skill(
 
 
 @router.get("/api/users/{user_id}/endorsements")
-def list_user_endorsements(user_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    rows = db.query(SkillEndorsement).filter(SkillEndorsement.endorsed_user_id == user_id).order_by(SkillEndorsement.created_at.desc()).all()
-    return {"items": [endorsement_to_dict(db, row) for row in rows]}
+def list_user_endorsements(
+    user_id: int,
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    # Avoid unbounded endorsement lists.
+    limit = max(1, min(limit, 50))
+    offset = max(0, offset)
+    q = (
+        db.query(SkillEndorsement)
+        .filter(SkillEndorsement.endorsed_user_id == user_id)
+        .order_by(SkillEndorsement.created_at.desc())
+    )
+    rows = q.offset(offset).limit(limit).all()
+    return {"items": [endorsement_to_dict(db, row) for row in rows], "limit": limit, "offset": offset}
+
 
 
 @router.post("/api/users/{user_id}/recommendations")
@@ -151,8 +204,23 @@ def write_user_recommendation(
 
 
 @router.get("/api/users/{user_id}/recommendations")
-def list_user_recommendations(user_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    rows = db.query(UserRecommendation).filter(UserRecommendation.subject_user_id == user_id).order_by(UserRecommendation.created_at.desc()).all()
-    return {"items": [recommendation_to_dict(db, row) for row in rows]}
+def list_user_recommendations(
+    user_id: int,
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    # Avoid unbounded recommendation lists.
+    limit = max(1, min(limit, 50))
+    offset = max(0, offset)
+    q = (
+        db.query(UserRecommendation)
+        .filter(UserRecommendation.subject_user_id == user_id)
+        .order_by(UserRecommendation.created_at.desc())
+    )
+    rows = q.offset(offset).limit(limit).all()
+    return {"items": [recommendation_to_dict(db, row) for row in rows], "limit": limit, "offset": offset}
+
 
 
