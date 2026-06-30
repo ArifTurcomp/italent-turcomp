@@ -49,7 +49,7 @@ def startup() -> None:
 
 
 # Root endpoint for Render
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {
         "service": "Turcomp iTalent API",
