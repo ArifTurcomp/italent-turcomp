@@ -569,10 +569,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#172033",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    boxShadow: "0px 4px 12px rgba(23, 32, 51, 0.05)",
     elevation: 2
   },
   formHeader: {

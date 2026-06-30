@@ -304,10 +304,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 16,
     marginBottom: 12,
-    shadowColor: "#172033",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    boxShadow: "0px 4px 12px rgba(23, 32, 51, 0.06)",
     elevation: 2
   },
   pinnedCard: {
