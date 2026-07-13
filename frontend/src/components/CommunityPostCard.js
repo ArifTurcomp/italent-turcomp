@@ -33,6 +33,7 @@ const CommunityPostCard = ({
   pollResults,
   onReact,
   onBookmark,
+  onShare,
   onLoadComments,
   onAddComment,
   onPollVote
