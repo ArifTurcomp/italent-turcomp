@@ -71,6 +71,9 @@ const api = {
     request: (payload) => unwrap(apiClient.post("/connections/request", payload)),
     respond: (id, payload) => unwrap(apiClient.put(`/connections/${id}/respond`, payload))
   },
+  supportRequests: {
+    create: (payload) => unwrap(apiClient.post("/support-requests", payload))
+  },
   departments: {
     list: (params = {}) => unwrap(apiClient.get("/departments", { params })),
     get: (id) => unwrap(apiClient.get(`/departments/${id}`)),

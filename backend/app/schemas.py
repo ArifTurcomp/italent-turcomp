@@ -190,6 +190,12 @@ class ConnectionPayload(BaseModel):
     message: Optional[str] = ""
 
 
+class SupportRequestPayload(BaseModel):
+    recipient_id: int
+    request_type: str = Field(pattern="^(coaching|counselling)$")
+    message: Optional[str] = ""
+
+
 class ConnectionResponsePayload(BaseModel):
     status: str = Field(pattern="^(accepted|rejected)$")
 

@@ -8,7 +8,8 @@ import {
   clearSelectedContact,
   fetchContactById,
   respondConnectionRequest,
-  sendConnectionRequest
+  sendConnectionRequest,
+  sendSupportRequest
 } from "../store/store";
 import { colors, formatDate, joinList } from "../utils/helpers";
 
@@ -58,6 +59,8 @@ const ContactDetailsScreen = ({ route }) => {
   const [adminStatus, setAdminStatus] = useState("active");
   const [adminRole, setAdminRole] = useState("user");
   const [adminMessage, setAdminMessage] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportRequesting, setSupportRequesting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchContactById(contactId));
@@ -116,6 +119,26 @@ const ContactDetailsScreen = ({ route }) => {
     }
   };
 
+  const handleSupportRequest = async (requestType) => {
+    if (!selectedContact || selectedContact.id === currentUser?.id) return;
+    setSupportMessage("");
+    setSupportRequesting(true);
+    try {
+      await dispatch(
+        sendSupportRequest({
+          recipient_id: selectedContact.id,
+          request_type: requestType,
+          message: `Hi ${name || "there"}, I would like to request free ${requestType}.`
+        })
+      ).unwrap();
+      setSupportMessage(`Your ${requestType} request was sent to ${name || "this member"}.`);
+    } catch (error) {
+      setSupportMessage(error || `Could not send your ${requestType} request.`);
+    } finally {
+      setSupportRequesting(false);
+    }
+  };
+
   if (currentUser && currentUser.role !== "admin") {
     return (
       <View style={styles.empty}>
@@ -142,6 +165,8 @@ const ContactDetailsScreen = ({ route }) => {
   const skills = joinList(selectedContact.skills);
   const action = connectionAction(selectedContact);
   const canConnect = selectedContact.id !== currentUser?.id;
+  const canRequestCoaching = canConnect && Boolean(selectedContact.offers_free_coaching);
+  const canRequestCounselling = canConnect && Boolean(selectedContact.offers_free_counselling);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -257,6 +282,31 @@ const ContactDetailsScreen = ({ route }) => {
         </Pressable>
       ) : null}
 
+      {(canRequestCoaching || canRequestCounselling) ? (
+        <View style={styles.supportSection}>
+          <Text style={styles.sectionTitle}>Request free support</Text>
+          {canRequestCoaching ? (
+            <Pressable
+              disabled={supportRequesting}
+              style={[styles.supportButton, supportRequesting && styles.disabledButton]}
+              onPress={() => handleSupportRequest("coaching")}
+            >
+              <Text style={styles.supportButtonText}>Request free coaching</Text>
+            </Pressable>
+          ) : null}
+          {canRequestCounselling ? (
+            <Pressable
+              disabled={supportRequesting}
+              style={[styles.supportButton, supportRequesting && styles.disabledButton]}
+              onPress={() => handleSupportRequest("counselling")}
+            >
+              <Text style={styles.supportButtonText}>Request free counselling</Text>
+            </Pressable>
+          ) : null}
+          {supportMessage ? <Text style={styles.supportMessage}>{supportMessage}</Text> : null}
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Profile</Text>
         <ProfileRow label="Email" value={selectedContact.email} />
@@ -344,6 +394,33 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: "900",
     fontSize: 15
+  },
+  supportSection: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14
+  },
+  supportButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.primarySoft,
+    marginTop: 10
+  },
+  supportButtonText: {
+    color: colors.primary,
+    fontWeight: "900"
+  },
+  supportMessage: {
+    color: colors.primary,
+    fontSize: 13,
+    marginTop: 10,
+    lineHeight: 19
   },
   section: {
     backgroundColor: colors.surface,

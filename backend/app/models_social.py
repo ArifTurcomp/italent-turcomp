@@ -45,6 +45,19 @@ class ConnectionRequest(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class SupportRequest(Base):
+    __tablename__ = "support_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    requester_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    request_type = Column(String(40), nullable=False, default="coaching")
+    message = Column(Text, nullable=True)
+    status = Column(String(40), nullable=False, default="pending")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class UserFollow(Base):
     __tablename__ = "user_follows"
 

@@ -162,6 +162,17 @@ export const respondConnectionRequest = createAsyncThunk(
   }
 );
 
+export const sendSupportRequest = createAsyncThunk(
+  "supportRequests/send",
+  async ({ recipient_id, request_type, message = "" }, { rejectWithValue }) => {
+    try {
+      return await api.supportRequests.create({ recipient_id, request_type, message });
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
 export const fetchDepartments = createAsyncThunk(
   "departments/fetch",
   async (params = {}, { rejectWithValue }) => {

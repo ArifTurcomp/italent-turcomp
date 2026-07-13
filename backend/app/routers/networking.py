@@ -78,6 +78,73 @@ def send_connection_request(
     return connection_to_dict(db, connection)
 
 
+@router.post("/api/support-requests")
+def send_support_request(
+    payload: SupportRequestPayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    if payload.recipient_id == current_user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot request support from yourself")
+    recipient = db.get(User, payload.recipient_id)
+    if not recipient:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Recipient not found")
+
+    request_type = payload.request_type.lower()
+    existing = (
+        db.query(SupportRequest)
+        .filter(
+            SupportRequest.requester_id == current_user.id,
+            SupportRequest.recipient_id == payload.recipient_id,
+            SupportRequest.request_type == request_type,
+        )
+        .first()
+    )
+    if existing:
+        existing.message = (payload.message or "").strip() or existing.message
+        existing.status = "pending"
+        existing.updated_at = utc_now()
+        db.commit()
+        db.refresh(existing)
+        return {
+            "id": existing.id,
+            "requester_id": existing.requester_id,
+            "recipient_id": existing.recipient_id,
+            "request_type": existing.request_type,
+            "message": existing.message,
+            "status": existing.status,
+        }
+
+    now = utc_now()
+    support_request = SupportRequest(
+        requester_id=current_user.id,
+        recipient_id=payload.recipient_id,
+        request_type=request_type,
+        message=(payload.message or "").strip(),
+        status="pending",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(support_request)
+    create_notification(
+        db,
+        payload.recipient_id,
+        f"New {request_type} request",
+        f"{current_user.first_name} requested free {request_type}.",
+        "support_request",
+    )
+    db.commit()
+    db.refresh(support_request)
+    return {
+        "id": support_request.id,
+        "requester_id": support_request.requester_id,
+        "recipient_id": support_request.recipient_id,
+        "request_type": support_request.request_type,
+        "message": support_request.message,
+        "status": support_request.status,
+    }
+
+
 @router.put("/api/connections/{connection_id}/respond")
 def respond_connection_request(
     connection_id: int,
