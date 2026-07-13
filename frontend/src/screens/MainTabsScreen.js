@@ -8,14 +8,12 @@ import CommunityScreen from "./CommunityScreen";
 import ContactsScreen from "./ContactsScreen";
 import DashboardScreen from "./DashboardScreen";
 import DepartmentsScreen from "./DepartmentsScreen";
-import JobsScreen from "./JobsScreen";
 import SettingsScreen from "./SettingsScreen";
 
 const tabs = [
   { key: "Dashboard", label: "Dashboard" },
-  { key: "Departments", label: "Groups" },
+  { key: "Departments", label: "Groups & Mentorship" },
   { key: "Contacts", label: "People" },
-  { key: "Jobs", label: "Mentorship" },
   { key: "Community", label: "Community" },
   { key: "Settings", label: "Settings" }
 ];
@@ -40,7 +38,6 @@ const MainTabsScreen = ({ navigation }) => {
     if (activeTab === "Contacts") {
       return <ContactsScreen navigation={navigation} initialSearch={peopleSearch} />;
     }
-    if (activeTab === "Jobs") return <JobsScreen onNavigate={navigateTab} />;
     if (activeTab === "Community") return <CommunityScreen />;
     return <SettingsScreen />;
   };

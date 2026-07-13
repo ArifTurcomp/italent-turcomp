@@ -41,6 +41,13 @@ const ProfileRow = ({ label, value }) => {
   );
 };
 
+const BooleanProfileRow = ({ label, value }) => (
+  <View style={styles.infoRow}>
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoValue}>{value ? "Yes" : "No"}</Text>
+  </View>
+);
+
 const ContactDetailsScreen = ({ route }) => {
   const { contactId } = route.params || {};
   const dispatch = useDispatch();
@@ -255,6 +262,10 @@ const ContactDetailsScreen = ({ route }) => {
         <ProfileRow label="Email" value={selectedContact.email} />
         <ProfileRow label="Group" value={selectedContact.department || "Unassigned"} />
         <ProfileRow label="Expertise" value={skills} />
+        <BooleanProfileRow label="Offers free coaching" value={selectedContact.offers_free_coaching} />
+        <BooleanProfileRow label="Offers free counselling" value={selectedContact.offers_free_counselling} />
+        <BooleanProfileRow label="Requests free coaching" value={selectedContact.requests_free_coaching} />
+        <BooleanProfileRow label="Requests free counselling" value={selectedContact.requests_free_counselling} />
         <ProfileRow label="Marital Status" value={selectedContact.marital_status} />
         <ProfileRow label="Bio" value={selectedContact.bio} />
         <ProfileRow label="Notes" value={selectedContact.notes} />
