@@ -302,17 +302,6 @@ CommunityPostCard.defaultProps = {
   onAddComment: undefined,
   onPollVote: undefined
 };
-  authorEmail: "",
-  comments: undefined,
-  commentsLoading: false,
-  bookmarked: false,
-  pollResults: {},
-  onReact: undefined,
-  onBookmark: undefined,
-  onLoadComments: undefined,
-  onAddComment: undefined,
-  onPollVote: undefined
-};
 
 const styles = StyleSheet.create({
   card: {
