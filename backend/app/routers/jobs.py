@@ -1,4 +1,6 @@
-﻿from fastapi import APIRouter
+﻿from datetime import datetime, timedelta
+
+from fastapi import APIRouter
 from app.routes_shared import *  # noqa: F401,F403
 
 router = APIRouter()
@@ -12,6 +14,11 @@ def list_jobs(
     _: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
+    now = utc_now()
+    expired_jobs = db.query(Job).filter(Job.status == "open", Job.closing_date != None).all()
+    for job in expired_jobs:
+        _expire_job(job, db, now)
+
     query = db.query(Job)
     if department_id:
         query = query.filter(Job.department_id == department_id)
@@ -30,7 +37,22 @@ def get_job(
     job = db.get(Job, job_id)
     if not job:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
+    _expire_job(job, db, utc_now())
     return job_to_dict(db, job)
+
+
+def _expire_job(job: Job, db: Session, now: datetime) -> None:
+    closing_date = None
+    if job.closing_date:
+        try:
+            closing_date = datetime.fromisoformat(job.closing_date)
+        except ValueError:
+            closing_date = None
+    if job.status == "open" and closing_date and now > closing_date:
+        job.status = "expired"
+        job.updated_at = now
+        db.commit()
+        db.refresh(job)
 
 
 @router.post("/api/jobs")
@@ -40,7 +62,8 @@ def create_job(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     now = utc_now()
-    job = Job(**dump(payload), created_by_id=current_user.id, posted_date=now, created_at=now, updated_at=now)
+    closing_date = payload.closing_date.strip() if payload.closing_date else (now + timedelta(days=50)).isoformat()
+    job = Job(**dump(payload), created_by_id=current_user.id, posted_date=now, created_at=now, updated_at=now, closing_date=closing_date)
     db.add(job)
     db.commit()
     db.refresh(job)

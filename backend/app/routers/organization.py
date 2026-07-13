@@ -10,6 +10,25 @@ def list_departments(page: int = Query(1, ge=1), per_page: int = Query(20, ge=1,
     return paginate(query, page, per_page, lambda department: department_to_dict(department, db))
 
 
+@router.get("/api/positions")
+def list_positions(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    rows = (
+        db.query(User.position)
+        .filter(User.position != None, User.position != "")
+        .distinct()
+        .order_by(User.position)
+        .all()
+    )
+    normalized = set()
+    for row in rows:
+        position = row[0].strip()
+        if position.lower() in {"leader", "coach"}:
+            normalized.add("Leader/Coach")
+        else:
+            normalized.add(position)
+    return {"items": sorted(normalized, key=str.lower)}
+
+
 @router.get("/api/departments/{department_id}")
 def get_department(department_id: int, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
     department = db.get(Department, department_id)

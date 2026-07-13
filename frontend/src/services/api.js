@@ -79,6 +79,9 @@ const api = {
     members: (id, params = {}) =>
       unwrap(apiClient.get(`/departments/${id}/members`, { params }))
   },
+  positions: {
+    list: () => unwrap(apiClient.get("/positions"))
+  },
   jobs: {
     list: (params = {}) => unwrap(apiClient.get("/jobs", { params })),
     get: (id) => unwrap(apiClient.get(`/jobs/${id}`)),
@@ -99,7 +102,12 @@ const api = {
     comments: (id, params = {}) =>
       unwrap(apiClient.get(`/community/${id}/comments`, { params })),
     comment: (id, payload) => unwrap(apiClient.post(`/community/${id}/comments`, payload)),
-    pollVote: (id, payload) => unwrap(apiClient.post(`/community/${id}/poll-vote`, payload))
+    pollVote: (id, payload) => unwrap(apiClient.post(`/community/${id}/poll-vote`, payload)),
+    share: (id, payload) => unwrap(apiClient.post(`/community/${id}/share`, payload))
+  },
+  admin: {
+    updateUserStatus: (id, payload) => unwrap(apiClient.put(`/admin/users/${id}/status`, payload)),
+    updateUserRole: (id, payload) => unwrap(apiClient.put(`/admin/users/${id}/role`, payload))
   }
 };
 

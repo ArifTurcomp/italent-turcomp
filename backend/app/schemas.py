@@ -26,8 +26,14 @@ class RegisterRequest(LoginRequest):
     notes: Optional[str] = ""
     gender: str = "prefer_not_to_say"
     marital_status: str = "single"
+    job_status: str = "not_specified"
+    offers_free_coaching: bool = False
+    offers_free_counselling: bool = False
+    requests_free_coaching: bool = False
+    requests_free_counselling: bool = False
     role: str = "user"
     department_id: int
+    terms_accepted: bool = False
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -39,6 +45,11 @@ class ProfileUpdateRequest(BaseModel):
     notes: Optional[str] = ""
     gender: str = "prefer_not_to_say"
     marital_status: str = "single"
+    job_status: str = "not_specified"
+    offers_free_coaching: bool = False
+    offers_free_counselling: bool = False
+    requests_free_coaching: bool = False
+    requests_free_counselling: bool = False
     department_id: int
     profile_picture: Optional[str] = ""
     cover_photo: Optional[str] = ""

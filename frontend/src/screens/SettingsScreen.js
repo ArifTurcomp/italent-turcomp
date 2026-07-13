@@ -16,6 +16,18 @@ const visibilityOptions = [
   { label: "Private", value: "private" }
 ];
 
+const jobStatusOptions = [
+  { label: "Open to opportunities", value: "open" },
+  { label: "Not looking", value: "not_looking" },
+  { label: "Working", value: "working" },
+  { label: "Seeking mentorship", value: "seeking_mentorship" }
+];
+
+const toggleOptions = [
+  { label: "Yes", value: "true" },
+  { label: "No", value: "false" }
+];
+
 const OptionGroup = ({ label, value, options, error, helperText, onChange }) => (
   <View style={styles.optionGroup}>
     <Text style={styles.optionLabel}>{label}</Text>
@@ -51,6 +63,11 @@ const SettingsScreen = () => {
     phone: "",
     position: "",
     marital_status: "single",
+    job_status: "not_specified",
+    offers_free_coaching: false,
+    offers_free_counselling: false,
+    requests_free_coaching: false,
+    requests_free_counselling: false,
     department_id: "",
     skills: "",
     notes: "",
@@ -81,6 +98,11 @@ const SettingsScreen = () => {
       skills: joinList(user?.skills),
       notes: user?.notes || "",
       bio: user?.bio || "",
+      job_status: user?.job_status || "not_specified",
+      offers_free_coaching: Boolean(user?.offers_free_coaching),
+      offers_free_counselling: Boolean(user?.offers_free_counselling),
+      requests_free_coaching: Boolean(user?.requests_free_coaching),
+      requests_free_counselling: Boolean(user?.requests_free_counselling),
       profile_picture: user?.profile_picture || "",
       cover_photo: user?.cover_photo || "",
       portfolio_url: user?.portfolio_url || "",
@@ -145,6 +167,11 @@ const SettingsScreen = () => {
           phone: values.phone.trim(),
           position: values.position.trim(),
           marital_status: values.marital_status.trim().toLowerCase(),
+          job_status: values.job_status,
+          offers_free_coaching: values.offers_free_coaching,
+          offers_free_counselling: values.offers_free_counselling,
+          requests_free_coaching: values.requests_free_coaching,
+          requests_free_counselling: values.requests_free_counselling,
           department_id: Number(values.department_id),
           skills: splitCsv(values.skills),
           notes: values.notes.trim(),
@@ -223,6 +250,36 @@ const SettingsScreen = () => {
           error={errors.marital_status}
           options={maritalStatusOptions}
           onChange={(value) => updateValue("marital_status", value)}
+        />
+        <OptionGroup
+          label="Job Status"
+          value={values.job_status}
+          options={jobStatusOptions}
+          onChange={(value) => updateValue("job_status", value)}
+        />
+        <OptionGroup
+          label="Offer free coaching"
+          value={String(values.offers_free_coaching)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("offers_free_coaching", value === "true")}
+        />
+        <OptionGroup
+          label="Offer free counselling"
+          value={String(values.offers_free_counselling)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("offers_free_counselling", value === "true")}
+        />
+        <OptionGroup
+          label="Request free coaching"
+          value={String(values.requests_free_coaching)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("requests_free_coaching", value === "true")}
+        />
+        <OptionGroup
+          label="Request free counselling"
+          value={String(values.requests_free_counselling)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("requests_free_counselling", value === "true")}
         />
         <OptionGroup
           label="Group"

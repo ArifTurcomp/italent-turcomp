@@ -1,19 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import FormInput from "../components/FormInput";
 import LoadingSpinner from "../components/LoadingSpinner";
 import TurcompLogo from "../components/TurcompLogo";
-import { fetchDepartments, registerUser } from "../store/store";
+import { fetchDepartments, fetchPositions, registerUser } from "../store/store";
 import { colors, isEmail, splitCsv } from "../utils/helpers";
 
 const OptionGroup = ({ label, value, options, error, helperText, onChange }) => (
@@ -47,7 +49,21 @@ const RegisterScreen = ({ navigation }) => {
   const { items: departments, loading: departmentsLoading, error: departmentsError } = useSelector(
     (state) => state.departments
   );
-  const [values, setValues] = useState({
+  const { items: positions, loading: positionsLoading, error: positionsError } = useSelector(
+    (state) => state.positions
+  );
+  const jobStatusOptions = [
+  { label: "Open to opportunities", value: "open" },
+  { label: "Open to work", value: "open_to_work" },
+  { label: "Not looking", value: "not_looking" }
+];
+
+const toggleOptions = [
+  { label: "Yes", value: "true" },
+  { label: "No", value: "false" }
+];
+
+const [values, setValues] = useState({
     username: "",
     email: "",
     first_name: "",
@@ -58,12 +74,19 @@ const RegisterScreen = ({ navigation }) => {
     skills: "",
     notes: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    job_status: "open",
+    offers_free_coaching: false,
+    offers_free_counselling: false,
+    requests_free_coaching: false,
+    requests_free_counselling: false,
+    terms_accepted: false
   });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     dispatch(fetchDepartments({ page: 1, per_page: 100 }));
+    dispatch(fetchPositions());
   }, [dispatch]);
 
   useEffect(() => {
@@ -80,9 +103,37 @@ const RegisterScreen = ({ navigation }) => {
     ? "Loading groups..."
     : departmentsError || (!groupOptions.length ? "No groups are available yet." : "");
 
+  const [positionOpen, setPositionOpen] = useState(false);
+  const [positionSearch, setPositionSearch] = useState("");
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+
+  const filteredPositions = useMemo(() => {
+    if (!positionSearch.trim()) {
+      return positions;
+    }
+    const search = positionSearch.trim().toLowerCase();
+    return positions.filter((position) => position.toLowerCase().includes(search));
+  }, [positionSearch, positions]);
+
+  useEffect(() => {
+    if (positionOpen) {
+      setPositionSearch(values.position || "");
+    }
+  }, [positionOpen, values.position]);
+
   const updateValue = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
+  };
+
+  const selectedPositionLabel = useMemo(
+    () => values.position || "Choose expertise / role",
+    [values.position]
+  );
+
+  const toggleTermsAccepted = () => {
+    setValues((current) => ({ ...current, terms_accepted: !current.terms_accepted }));
+    setErrors((current) => ({ ...current, terms_accepted: "" }));
   };
 
   const validate = () => {
@@ -97,6 +148,9 @@ const RegisterScreen = ({ navigation }) => {
     if (values.password.length < 8) nextErrors.password = "Use at least 8 characters.";
     if (values.password !== values.confirmPassword) {
       nextErrors.confirmPassword = "Passwords must match.";
+    }
+    if (!values.terms_accepted) {
+      nextErrors.terms_accepted = "You must accept the Terms & Conditions.";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -117,7 +171,13 @@ const RegisterScreen = ({ navigation }) => {
           skills: splitCsv(values.skills),
           notes: values.notes.trim(),
           password: values.password,
-          role: "user"
+          role: "user",
+          job_status: values.job_status,
+          offers_free_coaching: values.offers_free_coaching,
+          offers_free_counselling: values.offers_free_counselling,
+          requests_free_coaching: values.requests_free_coaching,
+          requests_free_counselling: values.requests_free_counselling,
+          terms_accepted: values.terms_accepted
         })
       ).unwrap();
 
@@ -175,12 +235,61 @@ const RegisterScreen = ({ navigation }) => {
           helperText="Stored for account follow-up only; phone numbers are not shown on public cards."
           onChangeText={(value) => updateValue("phone", value)}
         />
-        <FormInput
-          label="Expertise / Role"
-          value={values.position}
-          error={errors.position}
-          onChangeText={(value) => updateValue("position", value)}
-        />
+        <View style={styles.optionGroup}>
+          <Text style={styles.optionLabel}>Expertise / Role</Text>
+          <Pressable
+            style={[styles.selectInput, errors.position && styles.inputError]}
+            onPress={() => setPositionOpen((current) => !current)}
+          >
+            <Text style={[styles.selectText, !values.position && styles.selectPlaceholder]}>
+              {selectedPositionLabel}
+            </Text>
+          </Pressable>
+          {positionOpen ? (
+            <View style={styles.dropdownPanel}>
+              <TextInput
+                style={styles.dropdownSearch}
+                placeholder="Search roles or type your own"
+                placeholderTextColor={colors.muted}
+                value={positionSearch}
+                onChangeText={setPositionSearch}
+                autoCapitalize="words"
+              />
+              {positionsLoading ? (
+                <Text style={styles.dropdownPlaceholder}>Loading suggested roles...</Text>
+              ) : filteredPositions.length > 0 ? (
+                filteredPositions.map((position) => (
+                  <Pressable
+                    key={position}
+                    style={styles.dropdownOption}
+                    onPress={() => {
+                      updateValue("position", position);
+                      setPositionOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownOptionText}>{position}</Text>
+                  </Pressable>
+                ))
+              ) : positionSearch.trim() ? (
+                <Pressable
+                  style={styles.dropdownOption}
+                  onPress={() => {
+                    updateValue("position", positionSearch.trim());
+                    setPositionOpen(false);
+                  }}
+                >
+                  <Text style={styles.dropdownOptionText}>
+                    Use "{positionSearch.trim()}"
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.dropdownPlaceholder}>No roles match yet. Type to add your own.</Text>
+              )}
+            </View>
+          ) : null}
+          {errors.position ? <Text style={styles.fieldError}>{errors.position}</Text> : null}
+          <Text style={styles.helper}>Choose a suggested role or type your own expertise.</Text>
+        </View>
         <OptionGroup
           label="Group"
           value={values.department_id}
@@ -188,6 +297,36 @@ const RegisterScreen = ({ navigation }) => {
           helperText={groupHelperText}
           options={groupOptions}
           onChange={(value) => updateValue("department_id", value)}
+        />
+        <OptionGroup
+          label="Job Status"
+          value={values.job_status}
+          options={jobStatusOptions}
+          onChange={(value) => updateValue("job_status", value)}
+        />
+        <OptionGroup
+          label="Offer free coaching"
+          value={String(values.offers_free_coaching)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("offers_free_coaching", value === "true")}
+        />
+        <OptionGroup
+          label="Offer free counselling"
+          value={String(values.offers_free_counselling)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("offers_free_counselling", value === "true")}
+        />
+        <OptionGroup
+          label="Request free coaching"
+          value={String(values.requests_free_coaching)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("requests_free_coaching", value === "true")}
+        />
+        <OptionGroup
+          label="Request free counselling"
+          value={String(values.requests_free_counselling)}
+          options={toggleOptions}
+          onChange={(value) => updateValue("requests_free_counselling", value === "true")}
         />
         <FormInput
           label="Expertise Tags"
@@ -215,6 +354,41 @@ const RegisterScreen = ({ navigation }) => {
           secureTextEntry
           onChangeText={(value) => updateValue("confirmPassword", value)}
         />
+        <View style={styles.termsRow}>
+          <Pressable
+            style={[styles.checkbox, values.terms_accepted && styles.checkboxChecked]}
+            onPress={toggleTermsAccepted}
+          >
+            {values.terms_accepted ? <Text style={styles.checkboxMark}>✓</Text> : null}
+          </Pressable>
+          <Text style={styles.termsText}>
+            I accept the{' '}
+            <Text style={styles.termsLink} onPress={() => setTermsModalVisible(true)}>
+              Terms & Conditions
+            </Text>
+            .
+          </Text>
+        </View>
+        {errors.terms_accepted ? (
+          <Text style={styles.fieldError}>{errors.terms_accepted}</Text>
+        ) : null}
+        <Modal visible={termsModalVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Terms & Conditions</Text>
+              <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+                <Text style={styles.modalText}>
+                  By registering, you agree to use iTalent respectfully and to follow our community guidelines.
+                  Your profile and expertise are shared with the community, while private contact details remain hidden unless you choose to share them.
+                  Please contact the platform administrator if you have questions about privacy, account usage, or appropriate behaviour.
+                </Text>
+              </ScrollView>
+              <Pressable style={[styles.primaryButton, styles.modalButton]} onPress={() => setTermsModalVisible(false)}>
+                <Text style={styles.primaryText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -273,6 +447,140 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8
+  },
+  selectInput: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: "center"
+  },
+  selectText: {
+    color: colors.text,
+    fontSize: 14
+  },
+  selectPlaceholder: {
+    color: colors.muted
+  },
+  inputError: {
+    borderColor: colors.danger
+  },
+  dropdownPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 6,
+    overflow: "hidden"
+  },
+  dropdownOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  dropdownOptionText: {
+    color: colors.text,
+    fontSize: 14
+  },
+  dropdownSearch: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  dropdownPlaceholder: {
+    color: colors.muted,
+    padding: 12
+  },
+  suggestionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14
+  },
+  suggestionButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  suggestionText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 14
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  checkboxMark: {
+    color: colors.primary,
+    fontWeight: "900"
+  },
+  termsText: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 20
+  },
+  termsLink: {
+    color: colors.primary,
+    textDecorationLine: "underline"
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 12
+  },
+  modalBody: {
+    maxHeight: 280,
+    marginBottom: 18
+  },
+  modalBodyContent: {
+    paddingBottom: 8
+  },
+  modalText: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20
   },
   optionButton: {
     backgroundColor: colors.surface,

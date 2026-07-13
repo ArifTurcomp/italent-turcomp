@@ -173,6 +173,11 @@ const CommunityPostCard = ({
             {bookmarked ? "Unbookmark" : "Bookmark"}
           </Text>
         </Pressable>
+        {onShare ? (
+          <Pressable onPress={onShare} style={styles.iconButton}>
+            <Text style={styles.iconButtonText}>Share</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {expanded ? (
@@ -277,6 +282,7 @@ CommunityPostCard.propTypes = {
   pollResults: PropTypes.object,
   onReact: PropTypes.func,
   onBookmark: PropTypes.func,
+  onShare: PropTypes.func,
   onLoadComments: PropTypes.func,
   onAddComment: PropTypes.func,
   onPollVote: PropTypes.func
@@ -284,6 +290,18 @@ CommunityPostCard.propTypes = {
 
 CommunityPostCard.defaultProps = {
   authorName: "Turcomp Team",
+  authorEmail: "",
+  comments: undefined,
+  commentsLoading: false,
+  bookmarked: false,
+  pollResults: {},
+  onReact: undefined,
+  onBookmark: undefined,
+  onShare: undefined,
+  onLoadComments: undefined,
+  onAddComment: undefined,
+  onPollVote: undefined
+};
   authorEmail: "",
   comments: undefined,
   commentsLoading: false,

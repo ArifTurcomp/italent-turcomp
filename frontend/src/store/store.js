@@ -95,6 +95,28 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
+export const adminUpdateUserStatus = createAsyncThunk(
+  "contacts/adminUpdateStatus",
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      return await api.admin.updateUserStatus(id, { status });
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
+export const adminUpdateUserRole = createAsyncThunk(
+  "contacts/adminUpdateRole",
+  async ({ id, role }, { rejectWithValue }) => {
+    try {
+      return await api.admin.updateUserRole(id, { role });
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
 export const fetchContacts = createAsyncThunk(
   "contacts/fetch",
   async (params = {}, { rejectWithValue }) => {
@@ -146,6 +168,18 @@ export const fetchDepartments = createAsyncThunk(
     try {
       const data = await api.departments.list(params);
       return normalizeList(data, params.page || 1).items;
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
+export const fetchPositions = createAsyncThunk(
+  "positions/fetch",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await api.positions.list();
+      return data.items || data || [];
     } catch (error) {
       return rejectMessage(error, rejectWithValue);
     }
@@ -280,6 +314,17 @@ export const voteCommunityPoll = createAsyncThunk(
   }
 );
 
+export const shareCommunityPost = createAsyncThunk(
+  "community/share",
+  async ({ id, post }, { rejectWithValue }) => {
+    try {
+      return await api.community.share(id, post);
+    } catch (error) {
+      return rejectMessage(error, rejectWithValue);
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState: {
@@ -364,8 +409,10 @@ const contactsSlice = createSlice({
     items: [],
     selectedContact: null,
     loading: false,
+    adminSaving: false,
     saving: false,
     error: null,
+    adminError: null,
     pagination: { page: 1, per_page: 20, total: 0, pages: 1 }
   },
   reducers: {
@@ -402,6 +449,40 @@ const contactsSlice = createSlice({
       .addCase(fetchContactById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(adminUpdateUserStatus.pending, (state) => {
+        state.adminSaving = true;
+        state.adminError = null;
+      })
+      .addCase(adminUpdateUserStatus.fulfilled, (state, action) => {
+        state.adminSaving = false;
+        if (state.selectedContact?.id === action.payload.id) {
+          state.selectedContact = action.payload;
+        }
+        state.items = state.items.map((item) =>
+          item.id === action.payload.id ? action.payload : item
+        );
+      })
+      .addCase(adminUpdateUserStatus.rejected, (state, action) => {
+        state.adminSaving = false;
+        state.adminError = action.payload;
+      })
+      .addCase(adminUpdateUserRole.pending, (state) => {
+        state.adminSaving = true;
+        state.adminError = null;
+      })
+      .addCase(adminUpdateUserRole.fulfilled, (state, action) => {
+        state.adminSaving = false;
+        if (state.selectedContact?.id === action.payload.id) {
+          state.selectedContact = action.payload;
+        }
+        state.items = state.items.map((item) =>
+          item.id === action.payload.id ? action.payload : item
+        );
+      })
+      .addCase(adminUpdateUserRole.rejected, (state, action) => {
+        state.adminSaving = false;
+        state.adminError = action.payload;
       })
       .addCase(sendConnectionRequest.fulfilled, (state, action) => {
         const connection = action.payload;
@@ -471,6 +552,27 @@ const departmentsSlice = createSlice({
         state.items = action.payload;
       })
       .addCase(fetchDepartments.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  }
+});
+
+const positionsSlice = createSlice({
+  name: "positions",
+  initialState: { items: [], loading: false, error: null },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPositions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPositions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload;
+      })
+      .addCase(fetchPositions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
@@ -664,6 +766,18 @@ const communitySlice = createSlice({
       .addCase(voteCommunityPoll.fulfilled, (state, action) => {
         state.pollResultsByPost[action.payload.postId] = action.payload.result.results || {};
       })
+      .addCase(shareCommunityPost.pending, (state) => {
+        state.saving = true;
+        state.error = null;
+      })
+      .addCase(shareCommunityPost.fulfilled, (state, action) => {
+        state.saving = false;
+        state.posts.unshift(action.payload);
+      })
+      .addCase(shareCommunityPost.rejected, (state, action) => {
+        state.saving = false;
+        state.error = action.payload;
+      })
       .addCase(loginUser.fulfilled, (state) => {
         state.posts = [];
         state.bookmarkedPosts = [];
@@ -705,6 +819,7 @@ const store = configureStore({
     auth: authSlice.reducer,
     contacts: contactsSlice.reducer,
     departments: departmentsSlice.reducer,
+    positions: positionsSlice.reducer,
     jobs: jobsSlice.reducer,
     community: communitySlice.reducer
   },

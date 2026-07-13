@@ -40,7 +40,7 @@ const DashboardScreen = ({ onNavigate }) => {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Turcomp iTalent Community</Text>
+        <Text style={styles.heroTitle}>iTalent Community</Text>
         <Text style={styles.heroText}>
           Find people by expertise, share public topics, and connect through mentorship or coaching.
         </Text>

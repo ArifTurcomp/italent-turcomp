@@ -51,7 +51,7 @@ const MainTabsScreen = ({ navigation }) => {
         <View style={styles.headerTop}>
           <TurcompLogo compact />
           <View style={styles.brandCopy}>
-            <Text style={styles.brandTitle}>Turcomp iTalent</Text>
+            <Text style={styles.brandTitle}>iTalent</Text>
             <Text style={styles.brandSubtitle} numberOfLines={1}>
               {displayName || "Community mentorship network"}
             </Text>

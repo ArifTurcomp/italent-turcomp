@@ -12,6 +12,7 @@ import {
   fetchCommunityComments,
   fetchCommunityPosts,
   reactCommunityPost,
+  shareCommunityPost,
   voteCommunityPoll
 } from "../store/store";
 import { colors, splitCsv } from "../utils/helpers";
@@ -378,6 +379,22 @@ const CommunityScreen = () => {
             dispatch(reactCommunityPost({ id: post.id, reaction_type: reactionType }))
           }
           onBookmark={() => dispatch(bookmarkCommunityPost(post.id))}
+          onShare={() =>
+            dispatch(
+              shareCommunityPost({
+                id: post.id,
+                post: {
+                  title: post.title,
+                  content: post.content,
+                  category: post.category,
+                  content_type: post.content_type,
+                  hashtags: post.hashtags || [],
+                  poll_options: post.poll_options || [],
+                  attachments: post.attachments || []
+                }
+              })
+            )
+          }
           onLoadComments={() => dispatch(fetchCommunityComments(post.id))}
           onAddComment={(content, attachments = []) =>
             dispatch(createCommunityComment({ id: post.id, content, attachments })).unwrap()

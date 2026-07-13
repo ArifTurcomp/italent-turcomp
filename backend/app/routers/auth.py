@@ -53,6 +53,8 @@ def confirm_password_reset(payload: PasswordResetConfirmRequest, db: Session = D
 
 @router.post("/api/auth/register")
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    if not payload.terms_accepted:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You must accept the Terms & Conditions to register.")
     if db.query(User).filter(or_(User.email == payload.email.lower(), User.username == payload.username)).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "Email or username is already registered")
     _validate_department_id(db, payload.department_id)
@@ -69,6 +71,12 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> Dict[st
         notes=(payload.notes or "").strip(),
         gender=payload.gender.strip().lower(),
         marital_status=payload.marital_status.strip().lower(),
+        status="active",
+        job_status=(payload.job_status or "not_specified").strip(),
+        offers_free_coaching=payload.offers_free_coaching,
+        offers_free_counselling=payload.offers_free_counselling,
+        requests_free_coaching=payload.requests_free_coaching,
+        requests_free_counselling=payload.requests_free_counselling,
         role=payload.role,
         department_id=payload.department_id,
         created_at=now,

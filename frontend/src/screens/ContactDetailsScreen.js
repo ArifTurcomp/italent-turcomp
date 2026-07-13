@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import LoadingSpinner from "../components/LoadingSpinner";
 import {
+  adminUpdateUserRole,
+  adminUpdateUserStatus,
   clearSelectedContact,
   fetchContactById,
   respondConnectionRequest,
@@ -45,11 +47,25 @@ const ContactDetailsScreen = ({ route }) => {
   const { selectedContact, loading, error } = useSelector((state) => state.contacts);
   const currentUser = useSelector((state) => state.auth.user);
   const [connectionSaving, setConnectionSaving] = useState(false);
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
+  const [adminStatus, setAdminStatus] = useState("active");
+  const [adminRole, setAdminRole] = useState("user");
+  const [adminMessage, setAdminMessage] = useState("");
 
   useEffect(() => {
     dispatch(fetchContactById(contactId));
     return () => dispatch(clearSelectedContact());
   }, [contactId, dispatch]);
+
+  useEffect(() => {
+    if (selectedContact) {
+      setAdminStatus(selectedContact.status || "active");
+      setAdminRole(selectedContact.role || "user");
+      setAdminMessage("");
+    }
+  }, [selectedContact]);
+
+  const closeAdminModal = () => setAdminModalVisible(false);
 
   const handleConnection = async () => {
     if (!selectedContact || selectedContact.id === currentUser?.id) return;
@@ -74,6 +90,33 @@ const ContactDetailsScreen = ({ route }) => {
       setConnectionSaving(false);
     }
   };
+
+  const saveAdminChanges = async () => {
+    if (!selectedContact) return;
+    setAdminMessage("");
+    try {
+      if (adminStatus !== selectedContact.status) {
+        await dispatch(
+          adminUpdateUserStatus({ id: selectedContact.id, status: adminStatus })
+        ).unwrap();
+      }
+      if (adminRole !== selectedContact.role) {
+        await dispatch(adminUpdateUserRole({ id: selectedContact.id, role: adminRole })).unwrap();
+      }
+      setAdminMessage("Saved changes successfully.");
+    } catch (error) {
+      setAdminMessage(error || "Failed to save changes.");
+    }
+  };
+
+  if (currentUser && currentUser.role !== "admin") {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>Admin profile access only</Text>
+        <Text style={styles.emptyCopy}>Only administrator accounts can view detailed member profiles.</Text>
+      </View>
+    );
+  }
 
   if (loading && !selectedContact) {
     return <LoadingSpinner label="Loading profile" fullScreen />;
@@ -116,6 +159,81 @@ const ContactDetailsScreen = ({ route }) => {
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {currentUser?.role === "admin" ? (
+        <Pressable style={styles.adminButton} onPress={() => setAdminModalVisible(true)}>
+          <Text style={styles.adminButtonText}>Admin profile details</Text>
+        </Pressable>
+      ) : null}
+      <Modal visible={adminModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Admin profile details</Text>
+            <Text style={styles.modalLabel}>Account status</Text>
+            <View style={styles.optionRow}>
+              {[
+                { label: "Active", value: "active" },
+                { label: "Suspended", value: "suspended" },
+                { label: "Inactive", value: "inactive" }
+              ].map((option) => {
+                const active = adminStatus === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.optionButton, active && styles.activeOptionButton]}
+                    onPress={() => setAdminStatus(option.value)}
+                  >
+                    <Text style={[styles.optionText, active && styles.activeOptionText]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.modalLabel}>Role</Text>
+            <View style={styles.optionRow}>
+              {[
+                { label: "User", value: "user" },
+                { label: "Admin", value: "admin" },
+                { label: "Moderator", value: "moderator" }
+              ].map((option) => {
+                const active = adminRole === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.optionButton, active && styles.activeOptionButton]}
+                    onPress={() => setAdminRole(option.value)}
+                  >
+                    <Text style={[styles.optionText, active && styles.activeOptionText]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.modalLabel}>Job status</Text>
+            <Text style={styles.modalValue}>{selectedContact.job_status || "not_specified"}</Text>
+            <Text style={styles.modalLabel}>Offers free coaching</Text>
+            <Text style={styles.modalValue}>{selectedContact.offers_free_coaching ? "Yes" : "No"}</Text>
+            <Text style={styles.modalLabel}>Offers free counselling</Text>
+            <Text style={styles.modalValue}>{selectedContact.offers_free_counselling ? "Yes" : "No"}</Text>
+            <Text style={styles.modalLabel}>Requests free coaching</Text>
+            <Text style={styles.modalValue}>{selectedContact.requests_free_coaching ? "Yes" : "No"}</Text>
+            <Text style={styles.modalLabel}>Requests free counselling</Text>
+            <Text style={styles.modalValue}>{selectedContact.requests_free_counselling ? "Yes" : "No"}</Text>
+            {adminMessage ? <Text style={styles.adminMessage}>{adminMessage}</Text> : null}
+            <Pressable
+              accessibilityRole="button"
+              style={[styles.primaryButton, styles.modalButton]}
+              onPress={saveAdminChanges}
+            >
+              <Text style={styles.primaryText}>Save admin changes</Text>
+            </Pressable>
+            <Pressable style={[styles.primaryButton, styles.modalButton, styles.cancelButton]} onPress={closeAdminModal}>
+              <Text style={[styles.primaryText, styles.cancelText]}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {canConnect ? (
         <Pressable
@@ -251,8 +369,96 @@ const styles = StyleSheet.create({
     color: colors.danger,
     marginBottom: 12
   },
-  empty: {
+  adminButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.primarySoft,
+    marginBottom: 14,
+    alignItems: "center"
+  },
+  adminButtonText: {
+    color: colors.primary,
+    fontWeight: "900"
+  },
+  modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 12
+  },
+  modalLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 10
+  },
+  modalValue: {
+    color: colors.text,
+    fontSize: 15,
+    marginTop: 2
+  },
+  optionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8
+  },
+  optionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: 8
+  },
+  activeOptionButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  optionText: {
+    color: colors.text,
+    fontWeight: "700"
+  },
+  activeOptionText: {
+    color: colors.surface
+  },
+  adminMessage: {
+    color: colors.success,
+    marginTop: 10,
+    marginBottom: 12
+  },
+  modalButton: {
+    marginTop: 8
+  },
+  cancelButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.danger,
+    borderWidth: 1
+  },
+  cancelText: {
+    color: colors.danger
+  },
+  empty: {
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
@@ -263,6 +469,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
     marginBottom: 8
+  },
+  emptyCopy: {
+    color: colors.muted,
+    fontSize: 14,
+    paddingHorizontal: 12,
+    textAlign: "center"
   }
 });
 

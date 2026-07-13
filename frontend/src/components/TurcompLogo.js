@@ -18,8 +18,8 @@ const TurcompLogo = ({ compact }) => {
         style={markStyle}
       />
       <Text style={textStyle}>
-        <Text style={styles.wordBlue}>TUR</Text>
-        <Text style={styles.wordDark}>COMP</Text>
+        <Text style={styles.wordBlue}>i</Text>
+        <Text style={styles.wordDark}>Talent</Text>
       </Text>
     </View>
   );

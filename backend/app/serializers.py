@@ -18,6 +18,11 @@ def public_user(user: User) -> Dict[str, Any]:
         "notes": user.notes or "",
         "gender": user.gender or "prefer_not_to_say",
         "marital_status": user.marital_status or "single",
+        "job_status": user.job_status or "not_specified",
+        "offers_free_coaching": bool(user.offers_free_coaching),
+        "offers_free_counselling": bool(user.offers_free_counselling),
+        "requests_free_coaching": bool(user.requests_free_coaching),
+        "requests_free_counselling": bool(user.requests_free_counselling),
         "profile_picture": user.profile_picture or "",
         "cover_photo": user.cover_photo or "",
         "bio": user.bio or "",
@@ -63,6 +68,11 @@ def user_directory_to_dict(
     data["department"] = department.name if department else None
     data["hiring_personality_test"] = ""
     data["created_by_id"] = user.id
+    data["job_status"] = user.job_status or "not_specified"
+    data["offers_free_coaching"] = bool(user.offers_free_coaching)
+    data["offers_free_counselling"] = bool(user.offers_free_counselling)
+    data["requests_free_coaching"] = bool(user.requests_free_coaching)
+    data["requests_free_counselling"] = bool(user.requests_free_counselling)
     data["connection_id"] = None
     data["connection_status"] = None
     data["connection_direction"] = None
