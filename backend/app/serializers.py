@@ -7,11 +7,14 @@ from app.models import *  # noqa: F401,F403
 from app.models_core import UserDepartment
 from app.utils import iso
 
-def public_user(user: User) -> Dict[str, Any]:
+def public_user(user: User, db: Optional[Session] = None) -> Dict[str, Any]:
+    # `public_user` is used by endpoints that may or may not pass a DB session.
+    # When DB is not provided, skip join-table lookups.
     return {
         "id": user.id,
 
         "username": user.username,
+
         "email": user.email,
         "first_name": user.first_name,
         "last_name": user.last_name,
@@ -42,9 +45,17 @@ def public_user(user: User) -> Dict[str, Any]:
         "role": user.role,
         # Multi-group support: departments are stored in user_departments join table.
         "department_ids": (
-            [d.department_id for d in (db.query(UserDepartment).filter(UserDepartment.user_id == user.id).all())] if db else []
+            [
+                d.department_id
+                for d in db.query(UserDepartment)
+                .filter(UserDepartment.user_id == user.id)
+                .all()
+            ]
+            if db
+            else []
         ),
         "department_id": user.department_id,
+
 
 
         "created_at": iso(user.created_at),

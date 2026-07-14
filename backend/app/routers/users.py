@@ -24,18 +24,21 @@ def list_users(
     offset = max(0, offset)
 
     q = db.query(User).order_by(User.id)
-    items = [public_user(user) for user in q.offset(offset).limit(limit).all()]
+    items = [public_user(user, db) for user in q.offset(offset).limit(limit).all()]
+
     return {"items": items, "limit": limit, "offset": offset}
 
 
 
 @router.get("/api/users/me")
-def me(current_user: User = Depends(get_current_user)) -> Dict[str, Any]:
-    return public_user(current_user)
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
+    return public_user(current_user, db)
+
 
 
 @router.put("/api/users/me")
 def update_me(
+
     payload: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -124,7 +127,8 @@ def get_user_profile(
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
 
-    value = public_user(user)
+    value = public_user(user, db)
+
     _PROFILE_CACHE[user_id] = (now, value)
     return value
 
