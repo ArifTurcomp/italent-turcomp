@@ -38,7 +38,7 @@ def global_search(q: str, current_user: User = Depends(get_current_user), db: Se
     posts = db.query(CommunityPost).filter(or_(CommunityPost.content.ilike(needle), CommunityPost.category.ilike(needle))).limit(10).all()
     events = db.query(CommunityEvent).filter(or_(CommunityEvent.title.ilike(needle), CommunityEvent.description.ilike(needle))).limit(10).all()
     jobs = db.query(Job).filter(or_(Job.title.ilike(needle), Job.description.ilike(needle), cast(Job.requirements, String).ilike(needle))).limit(10).all()
-    return {"members": [public_user(user) for user in users], "communities": [community_group_to_dict(db, community) for community in communities], "posts": [post_to_dict(db, post) for post in posts], "events": [event_to_dict(db, event) for event in events], "jobs": [job_to_dict(db, job) for job in jobs]}
+    return {"members": [public_user(user, db) for user in users], "communities": [community_group_to_dict(db, community) for community in communities], "posts": [post_to_dict(db, post) for post in posts], "events": [event_to_dict(db, event) for event in events], "jobs": [job_to_dict(db, job) for job in jobs]}
 
 
 @router.post("/api/reputation/events")
@@ -65,7 +65,7 @@ def award_badge(payload: BadgePayload, current_user: User = Depends(get_current_
 @router.get("/api/reputation/leaderboard/top-contributors")
 def top_contributors(_: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
     rows = db.query(ReputationEvent.user_id, func.coalesce(func.sum(ReputationEvent.points), 0).label("points")).group_by(ReputationEvent.user_id).order_by(text("points DESC")).limit(20).all()
-    return {"items": [{"user": public_user(user), "points": points} for user_id, points in rows if (user := db.get(User, user_id))]}
+    return {"items": [{"user": public_user(user, db), "points": points} for user_id, points in rows if (user := db.get(User, user_id))]}
 
 
 @router.get("/api/reputation/{user_id}")

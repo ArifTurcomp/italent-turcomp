@@ -84,7 +84,7 @@ def user_directory_to_dict(
     current_user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     department = db.get(Department, user.department_id) if user.department_id else None
-    data = public_user(user)
+    data = public_user(user, db)
     data["name"] = f"{user.first_name} {user.last_name}".strip() or user.username
     data["department"] = department.name if department else None
     data["hiring_personality_test"] = ""

@@ -1,4 +1,4 @@
-﻿import base64
+import base64
 import hashlib
 import hmac
 import smtplib
@@ -8,7 +8,9 @@ from secrets import token_bytes
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
+# pyrefly: ignore [missing-import]
 from fastapi import Depends, Header, HTTPException, status
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 
 from app.config import PASSWORD_HASH_ITERATIONS, RESET_TOKEN_EXPIRE_MINUTES, SMTP_FROM_EMAIL, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USERNAME, SMTP_USE_TLS
@@ -54,7 +56,7 @@ def issue_tokens(db: Session, user: User) -> Dict[str, Any]:
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "user": public_user(user),
+        "user": public_user(user, db),
     }
 
 

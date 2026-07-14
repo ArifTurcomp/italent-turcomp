@@ -1,4 +1,6 @@
-﻿from fastapi import APIRouter
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter
+# pyrefly: ignore [missing-import]
 from sqlalchemy.exc import IntegrityError
 
 from app.routes_shared import *  # noqa: F401,F403
@@ -186,5 +188,5 @@ def update_two_factor(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
-    return public_user(current_user)
+    return public_user(current_user, db)
 
