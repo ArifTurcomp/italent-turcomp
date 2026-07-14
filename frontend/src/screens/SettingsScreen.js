@@ -96,6 +96,7 @@ const SettingsScreen = () => {
       position: user?.position || "",
       marital_status: user?.marital_status || "single",
       department_ids: user?.department_ids || (user?.department_id ? [String(user.department_id)] : []),
+
       skills: joinList(user?.skills),
       notes: user?.notes || "",
       bio: user?.bio || "",

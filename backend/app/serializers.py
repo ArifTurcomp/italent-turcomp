@@ -37,7 +37,11 @@ def public_user(user: User) -> Dict[str, Any]:
         "two_factor_enabled": bool(user.two_factor_enabled),
         "status": user.status,
         "role": user.role,
+        # DB model currently stores only a single department_id.
+        # Provide department_ids for multi-select clients.
+        "department_ids": [user.department_id] if user.department_id else [],
         "department_id": user.department_id,
+
         "created_at": iso(user.created_at),
         "updated_at": iso(user.updated_at),
     }

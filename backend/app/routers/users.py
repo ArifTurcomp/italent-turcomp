@@ -48,11 +48,13 @@ def update_me(
     payload_status = getattr(payload, "status", None)
     if payload_status is not None:
         current_user.status = str(payload_status).strip().lower()
-    # Multi-group support: store list payload into a multi-value field if available.
-    if hasattr(payload, "department_ids"):
-        current_user.department_ids = payload.department_ids
+    # NOTE: Current DB model stores only a single `department_id`.
+    # For multi-group selection, we persist the *first* selected department id.
+    if payload.department_ids:
+        current_user.department_id = payload.department_ids[0]
     else:
-        current_user.department_id = payload.department_id
+        current_user.department_id = None
+
 
     current_user.profile_picture = (payload.profile_picture or "").strip()
     current_user.cover_photo = (payload.cover_photo or "").strip()
