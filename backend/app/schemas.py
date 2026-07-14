@@ -50,6 +50,8 @@ class ProfileUpdateRequest(BaseModel):
     offers_free_counselling: bool = False
     requests_free_coaching: bool = False
     requests_free_counselling: bool = False
+    # User status (e.g. active/inactive). Used by /api/users/me update.
+    status: str = "active"
     department_id: int
     profile_picture: Optional[str] = ""
     cover_photo: Optional[str] = ""

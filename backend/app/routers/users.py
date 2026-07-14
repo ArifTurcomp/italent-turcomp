@@ -44,7 +44,10 @@ def update_me(
     current_user.notes = (payload.notes or "").strip()
     current_user.gender = payload.gender.strip().lower()
     current_user.marital_status = payload.marital_status.strip().lower()
-    current_user.status = payload.status.strip().lower()
+    # Backward-compat: older clients may not send `status`.
+    payload_status = getattr(payload, "status", None)
+    if payload_status is not None:
+        current_user.status = str(payload_status).strip().lower()
     current_user.department_id = payload.department_id
     current_user.profile_picture = (payload.profile_picture or "").strip()
     current_user.cover_photo = (payload.cover_photo or "").strip()
