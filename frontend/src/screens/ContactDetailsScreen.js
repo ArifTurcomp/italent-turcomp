@@ -128,25 +128,17 @@ const ContactDetailsScreen = ({ route }) => {
         sendSupportRequest({
           recipient_id: selectedContact.id,
           request_type: requestType,
-          message: `Hi ${name || "there"}, I would like to request free ${requestType}.`
+          message: `Hi ${displayName(selectedContact) || "there"}, I would like to request free ${requestType}.`
         })
       ).unwrap();
-      setSupportMessage(`Your ${requestType} request was sent to ${name || "this member"}.`);
+      setSupportMessage(`Your ${requestType} request was sent to ${displayName(selectedContact) || "this member"}.`);
+
     } catch (error) {
       setSupportMessage(error || `Could not send your ${requestType} request.`);
     } finally {
       setSupportRequesting(false);
     }
   };
-
-  if (currentUser && currentUser.role !== "admin") {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Admin profile access only</Text>
-        <Text style={styles.emptyCopy}>Only administrator accounts can view detailed member profiles.</Text>
-      </View>
-    );
-  }
 
   if (loading && !selectedContact) {
     return <LoadingSpinner label="Loading profile" fullScreen />;

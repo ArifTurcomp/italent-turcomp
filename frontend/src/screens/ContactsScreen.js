@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -78,8 +77,6 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
   const canGoBack = page > 1;
   const canGoForward = page < (pagination.pages || 1);
 
-  const isAdmin = user?.role === "admin";
-
   return (
     <View style={styles.screen}>
       <View style={styles.toolbar}>
@@ -114,10 +111,6 @@ const ContactsScreen = ({ navigation, initialSearch = "" }) => {
             <ContactCard
               contact={item}
               onPress={() => {
-                if (!isAdmin) {
-                  Alert.alert("Access denied", "Only admin users can view member profiles.");
-                  return;
-                }
                 navigation.navigate("ContactDetails", { contactId: item.id });
               }}
               onConnect={item.id !== user?.id ? () => sendRequest(item) : undefined}

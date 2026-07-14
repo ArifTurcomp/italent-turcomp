@@ -66,6 +66,12 @@ def update_me(
     current_user.notes = (payload.notes or "").strip()
     current_user.gender = payload.gender.strip().lower()
     current_user.marital_status = payload.marital_status.strip().lower()
+    # Job status and coaching/counselling availability flags.
+    current_user.job_status = (payload.job_status or "not_specified").strip().lower()
+    current_user.offers_free_coaching = bool(payload.offers_free_coaching)
+    current_user.offers_free_counselling = bool(payload.offers_free_counselling)
+    current_user.requests_free_coaching = bool(payload.requests_free_coaching)
+    current_user.requests_free_counselling = bool(payload.requests_free_counselling)
     # Backward-compat: older clients may not send `status`.
     payload_status = getattr(payload, "status", None)
     if payload_status is not None:
@@ -77,7 +83,6 @@ def update_me(
         now = utc_now()
         for dep_id in payload.department_ids:
             db.add(UserDepartment(user_id=current_user.id, department_id=dep_id, created_at=now, updated_at=now))
-
 
     current_user.profile_picture = (payload.profile_picture or "").strip()
     current_user.cover_photo = (payload.cover_photo or "").strip()
