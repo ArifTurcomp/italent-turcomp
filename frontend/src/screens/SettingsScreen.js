@@ -17,6 +17,7 @@ const visibilityOptions = [
 ];
 
 const jobStatusOptions = [
+  { label: "Not specified", value: "not_specified" },
   { label: "Open to opportunities", value: "open" },
   { label: "Not looking", value: "not_looking" },
   { label: "Working", value: "working" },
@@ -161,6 +162,8 @@ const SettingsScreen = () => {
           phone: values.phone.trim(),
           position: values.position.trim(),
           marital_status: values.marital_status.trim().toLowerCase(),
+          // Preserve the existing gender — it is not editable on this screen.
+          gender: user?.gender || "prefer_not_to_say",
           job_status: values.job_status,
           offers_free_coaching: values.offers_free_coaching,
           offers_free_counselling: values.offers_free_counselling,

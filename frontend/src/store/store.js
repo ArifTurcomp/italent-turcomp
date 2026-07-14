@@ -515,16 +515,19 @@ const contactsSlice = createSlice({
       })
       .addCase(respondConnectionRequest.fulfilled, (state, action) => {
         const connection = action.payload;
+        // When accepted, direction is no longer meaningful — set to null so
+        // connectionAction() sees status="accepted" first and shows "Friends".
+        const direction = connection.status === "accepted" ? null : "incoming";
         state.items = state.items.map((item) =>
           item.id === connection.requester_id
-            ? withConnectionState(item, connection, "incoming")
+            ? withConnectionState(item, connection, direction)
             : item
         );
         if (state.selectedContact?.id === connection.requester_id) {
           state.selectedContact = withConnectionState(
             state.selectedContact,
             connection,
-            "incoming"
+            direction
           );
         }
       })

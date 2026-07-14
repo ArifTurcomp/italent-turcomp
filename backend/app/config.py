@@ -1,5 +1,14 @@
 import os
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+# Load .env file when running locally (no-op if python-dotenv not installed or file missing)
+try:
+    # pyrefly: ignore [missing-import]
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
 
 
 def _int_env(name: str, default: int) -> int:

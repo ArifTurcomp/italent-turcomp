@@ -94,6 +94,8 @@ def update_me(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
+    # Evict profile cache so GET /api/users/{id}/profile returns fresh data.
+    _PROFILE_CACHE.pop(current_user.id, None)
     return public_user(current_user, db)
 
 @router.put("/api/users/me/profile")
@@ -107,6 +109,7 @@ def update_extended_profile(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
+    _PROFILE_CACHE.pop(current_user.id, None)
     return public_user(current_user, db)
 
 
@@ -120,6 +123,7 @@ def update_privacy_settings(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
+    _PROFILE_CACHE.pop(current_user.id, None)
     return public_user(current_user, db)
 
 

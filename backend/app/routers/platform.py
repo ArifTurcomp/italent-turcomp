@@ -1,4 +1,5 @@
-﻿from fastapi import APIRouter
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter
 from app.routes_shared import *  # noqa: F401,F403
 
 router = APIRouter()
@@ -99,7 +100,7 @@ def admin_update_user_status(user_id: int, payload: AdminStatusPayload, current_
     create_audit_log(db, current_user.id, "user.status.update", "user", user_id, {"status": payload.status})
     db.commit()
     db.refresh(user)
-    return public_user(user)
+    return public_user(user, db)
 
 
 @router.put("/api/admin/users/{user_id}/role")
@@ -113,7 +114,7 @@ def admin_update_user_role(user_id: int, payload: RolePayload, current_user: Use
     create_audit_log(db, current_user.id, "user.role.update", "user", user_id, {"role": payload.role})
     db.commit()
     db.refresh(user)
-    return public_user(user)
+    return public_user(user, db)
 
 
 @router.post("/api/admin/moderation/spam-check")

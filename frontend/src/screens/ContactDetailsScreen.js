@@ -59,6 +59,7 @@ const ContactDetailsScreen = ({ route }) => {
   const [adminStatus, setAdminStatus] = useState("active");
   const [adminRole, setAdminRole] = useState("user");
   const [adminMessage, setAdminMessage] = useState("");
+  const [adminMessageIsError, setAdminMessageIsError] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
   const [supportRequesting, setSupportRequesting] = useState(false);
 
@@ -103,7 +104,14 @@ const ContactDetailsScreen = ({ route }) => {
 
   const saveAdminChanges = async () => {
     if (!selectedContact) return;
+    // Guard: nothing to save.
+    if (adminStatus === selectedContact.status && adminRole === selectedContact.role) {
+      setAdminMessageIsError(false);
+      setAdminMessage("No changes to save.");
+      return;
+    }
     setAdminMessage("");
+    setAdminMessageIsError(false);
     try {
       if (adminStatus !== selectedContact.status) {
         await dispatch(
@@ -113,8 +121,10 @@ const ContactDetailsScreen = ({ route }) => {
       if (adminRole !== selectedContact.role) {
         await dispatch(adminUpdateUserRole({ id: selectedContact.id, role: adminRole })).unwrap();
       }
+      setAdminMessageIsError(false);
       setAdminMessage("Saved changes successfully.");
     } catch (error) {
+      setAdminMessageIsError(true);
       setAdminMessage(error || "Failed to save changes.");
     }
   };
@@ -244,7 +254,11 @@ const ContactDetailsScreen = ({ route }) => {
             <Text style={styles.modalValue}>{selectedContact.requests_free_coaching ? "Yes" : "No"}</Text>
             <Text style={styles.modalLabel}>Requests free counselling</Text>
             <Text style={styles.modalValue}>{selectedContact.requests_free_counselling ? "Yes" : "No"}</Text>
-            {adminMessage ? <Text style={styles.adminMessage}>{adminMessage}</Text> : null}
+            {adminMessage ? (
+              <Text style={[styles.adminMessage, adminMessageIsError && styles.adminMessageError]}>
+                {adminMessage}
+              </Text>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               style={[styles.primaryButton, styles.modalButton]}
@@ -526,6 +540,9 @@ const styles = StyleSheet.create({
     color: colors.success,
     marginTop: 10,
     marginBottom: 12
+  },
+  adminMessageError: {
+    color: colors.danger
   },
   modalButton: {
     marginTop: 8

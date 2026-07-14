@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from app.routes_shared import *  # noqa: F401,F403
 
 router = APIRouter()
@@ -188,7 +188,7 @@ def mutual_connections(
 
     mutual_ids = accepted_partner_ids(current_user.id) & accepted_partner_ids(user_id)
     users = db.query(User).filter(User.id.in_(mutual_ids)).all() if mutual_ids else []
-    return {"items": [public_user(user) for user in users]}
+    return {"items": [public_user(user, db) for user in users]}
 
 @router.get("/api/discovery/suggestions")
 def suggested_connections(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -205,7 +205,7 @@ def suggested_connections(current_user: User = Depends(get_current_user), db: Se
     query = db.query(User).filter(User.id.notin_(connected_ids))
     if current_user.department_id:
         query = query.order_by((User.department_id == current_user.department_id).desc(), User.id)
-    return {"items": [public_user(user) for user in query.limit(10).all()]}
+    return {"items": [public_user(user, db) for user in query.limit(10).all()]}
 
 
 @router.get("/api/discovery/match")
@@ -226,5 +226,5 @@ def discovery_match(
         query = query.filter(cast(User.skills, String).ilike(f"%{interest}%"))
     if nearby:
         query = query.filter(cast(User.contact_info, String).ilike(f"%{nearby}%"))
-    return {"items": [public_user(user) for user in query.limit(20).all()]}
+    return {"items": [public_user(user, db) for user in query.limit(20).all()]}
 
