@@ -164,13 +164,25 @@ def job_to_dict(db: Session, job: Job) -> Dict[str, Any]:
     }
 
 
-def post_to_dict(db: Session, post: CommunityPost, current_user_id: Optional[int] = None) -> Dict[str, Any]:
+def post_to_dict(
+    db: Session,
+    post: CommunityPost,
+    current_user_id: Optional[int] = None,
+    include_shared: bool = True,
+) -> Dict[str, Any]:
     author = db.get(User, post.author_id) if post.author_id else None
     author_name = None
     if author:
         author_name = f"{author.first_name} {author.last_name}".strip()
     bookmark_query = db.query(PostBookmark).filter(PostBookmark.post_id == post.id)
     bookmark_count = bookmark_query.count()
+
+    shared_post = None
+    if include_shared and post.shared_post_id:
+        source_post = db.get(CommunityPost, post.shared_post_id)
+        if source_post:
+            shared_post = post_to_dict(db, source_post, current_user_id, include_shared=False)
+
     return {
         "id": post.id,
         "title": post.title or "",
@@ -184,6 +196,7 @@ def post_to_dict(db: Session, post: CommunityPost, current_user_id: Optional[int
         "scheduled_at": post.scheduled_at,
         "pinned": bool(post.pinned),
         "shared_post_id": post.shared_post_id,
+        "shared_post": shared_post,
         "community_id": post.community_id,
         "author_id": post.author_id,
         "author_name": author_name,

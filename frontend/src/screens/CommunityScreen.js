@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import CommunityPostCard from "../components/CommunityPostCard";
 import FormInput from "../components/FormInput";
@@ -379,22 +379,28 @@ const CommunityScreen = () => {
             dispatch(reactCommunityPost({ id: post.id, reaction_type: reactionType }))
           }
           onBookmark={() => dispatch(bookmarkCommunityPost(post.id))}
-          onShare={() =>
-            dispatch(
-              shareCommunityPost({
-                id: post.id,
-                post: {
-                  title: post.title,
-                  content: post.content,
-                  category: post.category,
-                  content_type: post.content_type,
-                  hashtags: post.hashtags || [],
-                  poll_options: post.poll_options || [],
-                  attachments: post.attachments || []
-                }
-              })
-            )
-          }
+          onShare={async () => {
+            const originalPost = post.shared_post || post;
+            try {
+              await dispatch(
+                shareCommunityPost({
+                  id: originalPost.id,
+                  post: {
+                    title: originalPost.title,
+                    content: originalPost.content,
+                    category: originalPost.category,
+                    content_type: originalPost.content_type,
+                    hashtags: originalPost.hashtags || [],
+                    poll_options: originalPost.poll_options || [],
+                    attachments: originalPost.attachments || []
+                  }
+                })
+              ).unwrap();
+              Alert.alert("Success", "Post shared successfully!");
+            } catch (err) {
+              Alert.alert("Error", err || "Failed to share post");
+            }
+          }}
           onLoadComments={() => dispatch(fetchCommunityComments(post.id))}
           onAddComment={(content, attachments = []) =>
             dispatch(createCommunityComment({ id: post.id, content, attachments })).unwrap()

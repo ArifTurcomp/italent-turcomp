@@ -54,6 +54,14 @@ const CommunityPostCard = ({
   const tags = Array.isArray(post.hashtags) ? post.hashtags : [];
   const pollOptions = Array.isArray(post.poll_options) ? post.poll_options : [];
   const isPoll = post.content_type === "poll" && pollOptions.length > 0;
+
+  const isShared = !!post.shared_post;
+  const showOuterTitle = post.title && (!isShared || post.title !== post.shared_post.title);
+  const showOuterContent = post.content && (!isShared || post.content !== post.shared_post.content);
+
+  const sharedTags = isShared && Array.isArray(post.shared_post.hashtags) ? post.shared_post.hashtags : [];
+  const sharedPollOptions = isShared && Array.isArray(post.shared_post.poll_options) ? post.shared_post.poll_options : [];
+  const isSharedPoll = isShared && post.shared_post.content_type === "poll" && sharedPollOptions.length > 0;
   const pendingPhotoAttachments = photoAttachmentsFromText(commentPhotoUrls);
   const canSubmitComment = commentText.trim() || pendingPhotoAttachments.length > 0;
 
@@ -92,6 +100,14 @@ const CommunityPostCard = ({
 
   return (
     <View style={[styles.card, post.pinned && styles.pinnedCard]}>
+      {isShared ? (
+        <View style={styles.shareHeader}>
+          <Text style={styles.shareHeaderLabel}>
+            🔄 {authorName} shared a post
+          </Text>
+        </View>
+      ) : null}
+
       <Pressable style={styles.header} onPress={() => setExpanded((value) => !value)}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{getInitials(authorName)}</Text>
@@ -119,10 +135,62 @@ const CommunityPostCard = ({
         <Text style={styles.pinnedLabel}>Pinned conversation</Text>
       ) : null}
 
-      {post.title ? <Text style={styles.title}>{post.title}</Text> : null}
-      <Text style={styles.content}>{post.content}</Text>
+      {showOuterTitle ? <Text style={styles.title}>{post.title}</Text> : null}
+      {showOuterContent ? <Text style={styles.content}>{post.content}</Text> : null}
 
-      {tags.length > 0 ? (
+      {isShared && post.shared_post ? (
+        <View style={styles.sharedPostBox}>
+          <View style={styles.sharedPostHeader}>
+            <View style={styles.sharedPostAvatar}>
+              <Text style={styles.sharedPostAvatarText}>
+                {getInitials(post.shared_post.author_name)}
+              </Text>
+            </View>
+            <View style={styles.sharedPostAuthorBlock}>
+              <View style={styles.sharedPostNameRow}>
+                <Text style={styles.sharedPostAuthor} numberOfLines={1}>
+                  {post.shared_post.author_name || "Community Member"}
+                </Text>
+                <View style={styles.sharedPostBadge}>
+                  <Text style={styles.sharedPostBadgeText}>
+                    {post.shared_post.category || "General"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.sharedPostTime} numberOfLines={1}>
+                {formatDate(post.shared_post.created_at)}
+              </Text>
+            </View>
+          </View>
+
+          {post.shared_post.title ? (
+            <Text style={styles.sharedPostTitle}>{post.shared_post.title}</Text>
+          ) : null}
+          <Text style={styles.sharedPostContent}>{post.shared_post.content}</Text>
+
+          {sharedTags.length > 0 ? (
+            <View style={styles.sharedTagRow}>
+              {sharedTags.slice(0, 4).map((tag) => (
+                <View key={tag} style={styles.sharedTag}>
+                  <Text style={styles.sharedTagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {isSharedPoll ? (
+            <View style={styles.sharedPollPanel}>
+              {sharedPollOptions.map((option, index) => (
+                <View key={`${option}-${index}`} style={styles.sharedPollOption}>
+                  <Text style={styles.sharedPollText}>{option}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {tags.length > 0 && !isShared ? (
         <View style={styles.tagRow}>
           {tags.slice(0, 4).map((tag) => (
             <View key={tag} style={styles.tag}>
@@ -638,6 +706,125 @@ const styles = StyleSheet.create({
     height: 150,
     marginTop: 8,
     width: "100%"
+  },
+  shareHeader: {
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 6
+  },
+  shareHeaderLabel: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.muted
+  },
+  sharedPostBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary
+  },
+  sharedPostHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8
+  },
+  sharedPostAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primaryDark,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10
+  },
+  sharedPostAvatarText: {
+    color: colors.surface,
+    fontWeight: "900",
+    fontSize: 10
+  },
+  sharedPostAuthorBlock: {
+    flex: 1,
+    minWidth: 0
+  },
+  sharedPostNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  sharedPostAuthor: {
+    color: colors.text,
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  sharedPostTime: {
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 1
+  },
+  sharedPostBadge: {
+    backgroundColor: "#EAF7F2",
+    borderRadius: 5,
+    flexShrink: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 2
+  },
+  sharedPostBadgeText: {
+    color: colors.success,
+    fontSize: 9,
+    fontWeight: "800"
+  },
+  sharedPostTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+    lineHeight: 20,
+    marginBottom: 5
+  },
+  sharedPostContent: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18
+  },
+  sharedTagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10
+  },
+  sharedTag: {
+    backgroundColor: colors.background,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+  sharedTagText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  sharedPollPanel: {
+    gap: 6,
+    marginTop: 10
+  },
+  sharedPollOption: {
+    minHeight: 32,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    paddingHorizontal: 10
+  },
+  sharedPollText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800"
   }
 });
 

@@ -1,4 +1,5 @@
-﻿from fastapi import APIRouter
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter
 from app.routes_shared import *  # noqa: F401,F403
 
 router = APIRouter()
@@ -273,10 +274,12 @@ def share_post(
     source = db.get(CommunityPost, post_id)
     if not source:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    # Resolve the original post ID to prevent nesting a share inside another share
+    target_post_id = source.shared_post_id if source.shared_post_id else post_id
     now = utc_now()
     post = CommunityPost(
         **dump(payload),
-        shared_post_id=post_id,
+        shared_post_id=target_post_id,
         author_id=current_user.id,
         likes=0,
         comments_count=0,
