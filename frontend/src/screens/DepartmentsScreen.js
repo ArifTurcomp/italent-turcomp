@@ -76,7 +76,12 @@ const DepartmentsScreen = ({ onNavigate }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Groups</Text>
         {departments.map((item) => {
-          const members = contacts.filter((contact) => contact.department_id === item.id);
+          const members = contacts.filter((contact) => {
+            if (contact.department_ids && contact.department_ids.length > 0) {
+              return contact.department_ids.map(Number).includes(Number(item.id));
+            }
+            return contact.department_id === item.id;
+          });
           const memberTotal = item.members_count ?? members.length;
           return (
             <View key={item.id} style={styles.card}>

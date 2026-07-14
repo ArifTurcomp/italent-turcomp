@@ -71,7 +71,12 @@ const DashboardScreen = ({ onNavigate }) => {
             </View>
             <View style={styles.countBadge}>
               <Text style={styles.countText}>
-                {department.members_count || contacts.items.filter((item) => item.department_id === department.id).length}
+                {department.members_count || contacts.items.filter((item) => {
+                  if (item.department_ids && item.department_ids.length > 0) {
+                    return item.department_ids.map(Number).includes(Number(department.id));
+                  }
+                  return item.department_id === department.id;
+                }).length}
               </Text>
             </View>
           </View>

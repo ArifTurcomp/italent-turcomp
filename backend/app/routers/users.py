@@ -1,10 +1,26 @@
-﻿from fastapi import APIRouter
-from app.routes_shared import *  # noqa: F401,F403
+from __future__ import annotations
 
 from typing import Dict, Any
+# pyrefly: ignore [missing-import]
+from fastapi import APIRouter, Depends, HTTPException, status
+# pyrefly: ignore [missing-import]
+from sqlalchemy.orm import Session
 
-# Ensure department join model is available for multi-group persistence.
+
+from app.models import User, UserFollow, SkillEndorsement, UserRecommendation
 from app.models_core import UserDepartment
+from app.schemas import (
+    ProfileUpdateRequest,
+    ExtendedProfilePayload,
+    PrivacyPayload,
+    EndorsementPayload,
+    RecommendationPayload,
+)
+from app.serializers import public_user, endorsement_to_dict, recommendation_to_dict
+from app.dependencies import get_db
+from app.auth_service import get_current_user
+from app.utils import utc_now, dump
+from app.actions import create_notification
 
 
 
@@ -75,37 +91,6 @@ def update_me(
     db.refresh(current_user)
     return public_user(current_user, db)
 
-    current_user.position = payload.position.strip()
-    current_user.skills = payload.skills
-    current_user.notes = (payload.notes or "").strip()
-    current_user.gender = payload.gender.strip().lower()
-    current_user.marital_status = payload.marital_status.strip().lower()
-    # Backward-compat: older clients may not send `status`.
-    payload_status = getattr(payload, "status", None)
-    if payload_status is not None:
-        current_user.status = str(payload_status).strip().lower()
-    # Multi-group support: persist all selected departments into join table.
-    # Replace existing selections for this user.
-    db.query(UserDepartment).filter(UserDepartment.user_id == current_user.id).delete(synchronize_session=False)
-    if payload.department_ids:
-        now = utc_now()
-        for dep_id in payload.department_ids:
-            db.add(UserDepartment(user_id=current_user.id, department_id=dep_id, created_at=now, updated_at=now))
-
-
-
-    current_user.profile_picture = (payload.profile_picture or "").strip()
-    current_user.cover_photo = (payload.cover_photo or "").strip()
-    current_user.bio = (payload.bio or "").strip()
-    current_user.portfolio_url = (payload.portfolio_url or "").strip()
-    current_user.resume_url = (payload.resume_url or "").strip()
-    current_user.contact_info = payload.contact_info
-    current_user.privacy_settings = payload.privacy_settings
-    current_user.updated_at = utc_now()
-    db.commit()
-    db.refresh(current_user)
-    return public_user(current_user)
-
 @router.put("/api/users/me/profile")
 def update_extended_profile(
     payload: ExtendedProfilePayload,
@@ -117,7 +102,7 @@ def update_extended_profile(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
-    return public_user(current_user)
+    return public_user(current_user, db)
 
 
 @router.put("/api/users/me/privacy")
@@ -130,7 +115,7 @@ def update_privacy_settings(
     current_user.updated_at = utc_now()
     db.commit()
     db.refresh(current_user)
-    return public_user(current_user)
+    return public_user(current_user, db)
 
 
 _PROFILE_CACHE: dict[int, tuple[float, Dict[str, Any]]] = {}
