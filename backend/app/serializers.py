@@ -4,10 +4,13 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models import *  # noqa: F401,F403
+from app.models_core import UserDepartment
 from app.utils import iso
+
 def public_user(user: User) -> Dict[str, Any]:
     return {
         "id": user.id,
+
         "username": user.username,
         "email": user.email,
         "first_name": user.first_name,
@@ -37,10 +40,12 @@ def public_user(user: User) -> Dict[str, Any]:
         "two_factor_enabled": bool(user.two_factor_enabled),
         "status": user.status,
         "role": user.role,
-        # DB model currently stores only a single department_id.
-        # Provide department_ids for multi-select clients.
-        "department_ids": [user.department_id] if user.department_id else [],
+        # Multi-group support: departments are stored in user_departments join table.
+        "department_ids": (
+            [d.department_id for d in (db.query(UserDepartment).filter(UserDepartment.user_id == user.id).all())] if db else []
+        ),
         "department_id": user.department_id,
+
 
         "created_at": iso(user.created_at),
         "updated_at": iso(user.updated_at),

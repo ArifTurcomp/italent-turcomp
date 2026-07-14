@@ -8,6 +8,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
     username = Column(String(80), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
@@ -43,10 +44,20 @@ class User(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class UserDepartment(Base):
+    __tablename__ = "user_departments"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    department_id = Column(Integer, ForeignKey("departments.id"), primary_key=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
+
     name = Column(String(120), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     leader_id = Column(Integer, nullable=True)

@@ -18,7 +18,28 @@ def add_missing_columns(table_name: str, column_statements: Dict[str, str]) -> N
 
 
 def migrate_existing_columns() -> None:
+    # Create join table for multi-department selection.
+    # Safe for repeated runs (checked via inspector).
+    from sqlalchemy import text
+    inspector = inspect(engine)
+    if "user_departments" not in inspector.get_table_names():
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE user_departments (
+                        user_id INTEGER NOT NULL,
+                        department_id INTEGER NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (user_id, department_id)
+                    )
+                    """
+                )
+            )
+
     json_type = "JSON"
+
     bool_default_false = "BOOLEAN DEFAULT FALSE"
     if DATABASE_DIALECT == "postgresql":
         user_columns = {

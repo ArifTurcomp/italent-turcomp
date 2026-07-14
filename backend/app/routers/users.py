@@ -3,6 +3,10 @@ from app.routes_shared import *  # noqa: F401,F403
 
 from typing import Dict, Any
 
+# Ensure department join model is available for multi-group persistence.
+from app.models_core import UserDepartment
+
+
 
 router = APIRouter()
 
@@ -48,12 +52,14 @@ def update_me(
     payload_status = getattr(payload, "status", None)
     if payload_status is not None:
         current_user.status = str(payload_status).strip().lower()
-    # NOTE: Current DB model stores only a single `department_id`.
-    # For multi-group selection, we persist the *first* selected department id.
+    # Multi-group support: persist all selected departments into join table.
+    # Replace existing selections for this user.
+    db.query(UserDepartment).filter(UserDepartment.user_id == current_user.id).delete(synchronize_session=False)
     if payload.department_ids:
-        current_user.department_id = payload.department_ids[0]
-    else:
-        current_user.department_id = None
+        now = utc_now()
+        for dep_id in payload.department_ids:
+            db.add(UserDepartment(user_id=current_user.id, department_id=dep_id, created_at=now, updated_at=now))
+
 
 
     current_user.profile_picture = (payload.profile_picture or "").strip()
