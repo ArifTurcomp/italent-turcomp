@@ -38,7 +38,6 @@ def me(current_user: User = Depends(get_current_user), db: Session = Depends(get
 
 @router.put("/api/users/me")
 def update_me(
-
     payload: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -46,6 +45,36 @@ def update_me(
     current_user.first_name = payload.first_name.strip()
     current_user.last_name = payload.last_name.strip()
     current_user.phone = payload.phone.strip()
+    current_user.position = payload.position.strip()
+    current_user.skills = payload.skills
+    current_user.notes = (payload.notes or "").strip()
+    current_user.gender = payload.gender.strip().lower()
+    current_user.marital_status = payload.marital_status.strip().lower()
+    # Backward-compat: older clients may not send `status`.
+    payload_status = getattr(payload, "status", None)
+    if payload_status is not None:
+        current_user.status = str(payload_status).strip().lower()
+    # Multi-group support: persist all selected departments into join table.
+    # Replace existing selections for this user.
+    db.query(UserDepartment).filter(UserDepartment.user_id == current_user.id).delete(synchronize_session=False)
+    if payload.department_ids:
+        now = utc_now()
+        for dep_id in payload.department_ids:
+            db.add(UserDepartment(user_id=current_user.id, department_id=dep_id, created_at=now, updated_at=now))
+
+
+    current_user.profile_picture = (payload.profile_picture or "").strip()
+    current_user.cover_photo = (payload.cover_photo or "").strip()
+    current_user.bio = (payload.bio or "").strip()
+    current_user.portfolio_url = (payload.portfolio_url or "").strip()
+    current_user.resume_url = (payload.resume_url or "").strip()
+    current_user.contact_info = payload.contact_info
+    current_user.privacy_settings = payload.privacy_settings
+    current_user.updated_at = utc_now()
+    db.commit()
+    db.refresh(current_user)
+    return public_user(current_user, db)
+
     current_user.position = payload.position.strip()
     current_user.skills = payload.skills
     current_user.notes = (payload.notes or "").strip()
