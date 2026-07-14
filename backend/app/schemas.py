@@ -32,7 +32,7 @@ class RegisterRequest(LoginRequest):
     requests_free_coaching: bool = False
     requests_free_counselling: bool = False
     role: str = "user"
-    department_id: int
+    department_ids: List[int] = Field(min_items=1)
     terms_accepted: bool = False
 
 
@@ -52,7 +52,7 @@ class ProfileUpdateRequest(BaseModel):
     requests_free_counselling: bool = False
     # User status (e.g. active/inactive). Used by /api/users/me update.
     status: str = "active"
-    department_id: int
+    department_ids: List[int] = Field(min_items=1)
     profile_picture: Optional[str] = ""
     cover_photo: Optional[str] = ""
     bio: Optional[str] = ""

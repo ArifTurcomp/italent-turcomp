@@ -63,14 +63,14 @@ const toggleOptions = [
   { label: "No", value: "false" }
 ];
 
-const [values, setValues] = useState({
+  const [values, setValues] = useState({
     username: "",
     email: "",
     first_name: "",
     last_name: "",
     phone: "",
     position: "",
-    department_id: "",
+    department_ids: [],
     skills: "",
     notes: "",
     password: "",
@@ -90,10 +90,13 @@ const [values, setValues] = useState({
   }, [dispatch]);
 
   useEffect(() => {
-    if (!values.department_id && departments.length === 1) {
-      setValues((current) => ({ ...current, department_id: String(departments[0].id) }));
+    if (!values.department_ids.length && departments.length === 1) {
+      setValues((current) => ({
+        ...current,
+        department_ids: [String(departments[0].id)]
+      }));
     }
-  }, [departments, values.department_id]);
+  }, [departments, values.department_ids.length]);
 
   const groupOptions = departments.map((department) => ({
     label: department.name,
@@ -144,7 +147,7 @@ const [values, setValues] = useState({
     if (!isEmail(values.email)) nextErrors.email = "Enter a valid email address.";
     if (!values.phone.trim()) nextErrors.phone = "Phone number is required.";
     if (!values.position.trim()) nextErrors.position = "Expertise or role is required.";
-    if (!values.department_id.trim()) nextErrors.department_id = "Choose a group.";
+    if (!values.department_ids.length) nextErrors.department_ids = "Choose at least one group.";
     if (values.password.length < 8) nextErrors.password = "Use at least 8 characters.";
     if (values.password !== values.confirmPassword) {
       nextErrors.confirmPassword = "Passwords must match.";
@@ -167,7 +170,7 @@ const [values, setValues] = useState({
           last_name: values.last_name.trim(),
           phone: values.phone.trim(),
           position: values.position.trim(),
-          department_id: Number(values.department_id),
+          department_ids: values.department_ids.map((id) => Number(id)),
           skills: splitCsv(values.skills),
           notes: values.notes.trim(),
           password: values.password,
@@ -290,14 +293,40 @@ const [values, setValues] = useState({
           {errors.position ? <Text style={styles.fieldError}>{errors.position}</Text> : null}
           <Text style={styles.helper}>Choose a suggested role or type your own expertise.</Text>
         </View>
-        <OptionGroup
-          label="Group"
-          value={values.department_id}
-          error={errors.department_id}
-          helperText={groupHelperText}
-          options={groupOptions}
-          onChange={(value) => updateValue("department_id", value)}
-        />
+        <View style={styles.optionGroup}>
+          <Text style={styles.optionLabel}>Groups</Text>
+          <View style={styles.optionRow}>
+            {groupOptions.map((option) => {
+              const active = values.department_ids.map(String).includes(String(option.value));
+              return (
+                <Pressable
+                  key={String(option.value)}
+                  accessibilityRole="button"
+                  style={[styles.optionButton, active && styles.activeOptionButton]}
+                  onPress={() => {
+                    setValues((current) => {
+                      const id = String(option.value);
+                      const exists = current.department_ids.map(String).includes(id);
+                      return {
+                        ...current,
+                        department_ids: exists
+                          ? current.department_ids.map(String).filter((x) => x !== id)
+                          : [...current.department_ids, id]
+                      };
+                    });
+                    setErrors((current) => ({ ...current, department_ids: "" }));
+                  }}
+                >
+                  <Text style={[styles.optionText, active && styles.activeOptionText]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {errors.department_ids ? <Text style={styles.fieldError}>{errors.department_ids}</Text> : null}
+          {!errors.department_ids ? <Text style={styles.helper}>{groupHelperText}</Text> : null}
+        </View>
         <OptionGroup
           label="Job Status"
           value={values.job_status}

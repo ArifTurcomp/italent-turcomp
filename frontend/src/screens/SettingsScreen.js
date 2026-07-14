@@ -68,7 +68,8 @@ const SettingsScreen = () => {
     offers_free_counselling: false,
     requests_free_coaching: false,
     requests_free_counselling: false,
-    department_id: "",
+    department_ids: [],
+
     skills: "",
     notes: "",
     bio: "",
@@ -94,7 +95,7 @@ const SettingsScreen = () => {
       phone: user?.phone || "",
       position: user?.position || "",
       marital_status: user?.marital_status || "single",
-      department_id: user?.department_id ? String(user.department_id) : "",
+      department_ids: user?.department_ids || (user?.department_id ? [String(user.department_id)] : []),
       skills: joinList(user?.skills),
       notes: user?.notes || "",
       bio: user?.bio || "",
@@ -119,16 +120,7 @@ const SettingsScreen = () => {
     label: department.name,
     value: String(department.id)
   }));
-  const hasSelectedGroup = groupOptions.some(
-    (option) => option.value === String(values.department_id)
-  );
-  const visibleGroupOptions =
-    values.department_id && !hasSelectedGroup
-      ? [
-          { label: `Current group #${values.department_id}`, value: String(values.department_id) },
-          ...groupOptions
-        ]
-      : groupOptions;
+  const visibleGroupOptions = groupOptions;
 
   const updateValue = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -147,11 +139,12 @@ const SettingsScreen = () => {
     if (!["public", "private"].includes(values.profile_visibility.trim().toLowerCase())) {
       nextErrors.profile_visibility = "Use public or private.";
     }
-    if (!values.department_id.trim()) {
-      nextErrors.department_id = "Choose a group.";
-    } else if (Number.isNaN(Number(values.department_id))) {
-      nextErrors.department_id = "Choose a valid group.";
+    if (!values.department_ids.length) {
+      nextErrors.department_ids = "Choose at least one group.";
+    } else if (values.department_ids.some((id) => Number.isNaN(Number(id)))) {
+      nextErrors.department_ids = "Choose valid groups.";
     }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -172,7 +165,7 @@ const SettingsScreen = () => {
           offers_free_counselling: values.offers_free_counselling,
           requests_free_coaching: values.requests_free_coaching,
           requests_free_counselling: values.requests_free_counselling,
-          department_id: Number(values.department_id),
+          department_ids: values.department_ids.map((id) => Number(id)),
           skills: splitCsv(values.skills),
           notes: values.notes.trim(),
           bio: values.bio.trim(),
@@ -281,14 +274,40 @@ const SettingsScreen = () => {
           options={toggleOptions}
           onChange={(value) => updateValue("requests_free_counselling", value === "true")}
         />
-        <OptionGroup
-          label="Group"
-          value={values.department_id}
-          error={errors.department_id}
-          helperText={departmentsLoading ? "Loading groups..." : ""}
-          options={visibleGroupOptions}
-          onChange={(value) => updateValue("department_id", value)}
-        />
+        <View style={styles.optionGroup}>
+          <Text style={styles.optionLabel}>Groups</Text>
+          <View style={styles.optionRow}>
+            {visibleGroupOptions.map((option) => {
+              const active = values.department_ids.map(String).includes(String(option.value));
+              return (
+                <Pressable
+                  key={String(option.value)}
+                  accessibilityRole="button"
+                  style={[styles.optionButton, active && styles.activeOptionButton]}
+                  onPress={() => {
+                    setValues((current) => {
+                      const id = String(option.value);
+                      const exists = current.department_ids.map(String).includes(id);
+                      return {
+                        ...current,
+                        department_ids: exists
+                          ? current.department_ids.map(String).filter((x) => x !== id)
+                          : [...current.department_ids, id]
+                      };
+                    });
+                    setErrors((current) => ({ ...current, department_ids: "" }));
+                  }}
+                >
+                  <Text style={[styles.optionText, active && styles.activeOptionText]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {errors.department_ids ? <Text style={styles.fieldError}>{errors.department_ids}</Text> : null}
+          {!errors.department_ids ? <Text style={styles.helper}>{departmentsLoading ? "Loading groups..." : ""}</Text> : null}
+        </View>
         <FormInput
           label="Expertise Tags"
           value={values.skills}
