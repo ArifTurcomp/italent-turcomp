@@ -1,10 +1,11 @@
-﻿from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional
 
+# pyrefly: ignore [missing-import]
 from sqlalchemy import or_
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 
 from app.models import *  # noqa: F401,F403
-from app.models_core import UserDepartment
 from app.utils import iso
 
 def public_user(user: User, db: Optional[Session] = None) -> Dict[str, Any]:

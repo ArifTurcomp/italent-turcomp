@@ -7,8 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 
-from app.models import User, UserFollow, SkillEndorsement, UserRecommendation
-from app.models_core import UserDepartment
+from app.models import User, UserFollow, SkillEndorsement, UserRecommendation, UserDepartment
 from app.schemas import (
     ProfileUpdateRequest,
     ExtendedProfilePayload,
